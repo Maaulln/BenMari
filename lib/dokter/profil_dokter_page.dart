@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'doctor_surface.dart';
+import '../widgets/doctor_shared_widgets.dart';
 
 class DokterProfilPage extends StatefulWidget {
   const DokterProfilPage({super.key, required this.onBackToDashboard});
@@ -66,24 +67,8 @@ class _DokterProfilPageState extends State<DokterProfilPage> {
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 90),
                 child: Column(
                   children: [
-                    Container(
-                      width: double.infinity,
+                    DoctorCardContainer(
                       padding: const EdgeInsets.fromLTRB(20, 32, 20, 20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFFF3F4F6),
-                          width: 1,
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x1A000000),
-                            blurRadius: 3,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
                       child: Column(
                         children: [
                           Container(
@@ -214,24 +199,8 @@ class _DokterProfilPageState extends State<DokterProfilPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Container(
-                      width: double.infinity,
+                    DoctorCardContainer(
                       padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFFF3F4F6),
-                          width: 1,
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x1A000000),
-                            blurRadius: 3,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -272,8 +241,7 @@ class _DokterProfilPageState extends State<DokterProfilPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Container(
-                      width: double.infinity,
+                    DoctorCardContainer(
                       padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(

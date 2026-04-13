@@ -11,43 +11,83 @@ class PatientHomePage extends StatefulWidget {
 
 class _PatientHomePageState extends State<PatientHomePage> {
   int _selectedIndex = 0;
+  bool _showNotifications = false;
+  bool _showSearchDoctor = false;
+  bool _showRekamDetail = false;
+  bool _showBillDetail = false;
 
   void _selectTab(int index) {
-    if (index == _selectedIndex) {
-      return;
-    }
-
     setState(() {
       _selectedIndex = index;
+      _showNotifications = false;
+      if (index != 1) {
+        _showSearchDoctor = false;
+      }
+      if (index != 2) {
+        _showRekamDetail = false;
+      }
+      if (index != 3) {
+        _showBillDetail = false;
+      }
     });
+  }
+
+  Widget _currentPage() {
+    if (_showNotifications) {
+      return _NotificationsPage(
+        onBack: () => setState(() => _showNotifications = false),
+      );
+    }
+
+    switch (_selectedIndex) {
+      case 0:
+        return _PatientDashboardPage(
+          onOpenNotifications: () => setState(() => _showNotifications = true),
+          onOpenSearchDoctor: () {
+            setState(() {
+              _selectedIndex = 1;
+              _showSearchDoctor = true;
+            });
+          },
+        );
+      case 1:
+        if (_showSearchDoctor) {
+          return _SearchDoctorPage(
+            onBack: () => setState(() => _showSearchDoctor = false),
+          );
+        }
+        return _AppointmentsPage(
+          onOpenSearchDoctor: () => setState(() => _showSearchDoctor = true),
+        );
+      case 2:
+        if (_showRekamDetail) {
+          return _RekamMedisDetailPage(
+            onBack: () => setState(() => _showRekamDetail = false),
+          );
+        }
+        return _RekamMedisListPage(
+          onOpenDetail: () => setState(() => _showRekamDetail = true),
+        );
+      case 3:
+        if (_showBillDetail) {
+          return _BillDetailDialogPage(
+            onBack: () => setState(() => _showBillDetail = false),
+          );
+        }
+        return _BillsPage(
+          onOpenDetail: () => setState(() => _showBillDetail = true),
+        );
+      case 4:
+      default:
+        return const _ProfilePage();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: const [
-          _PatientDashboardPage(),
-          _PatientPlaceholderPage(
-            title: 'Appointment',
-            subtitle: 'Belum ada layout tambahan untuk tab ini.',
-          ),
-          _PatientPlaceholderPage(
-            title: 'Rekam Medis',
-            subtitle: 'Belum ada layout tambahan untuk tab ini.',
-          ),
-          _PatientPlaceholderPage(
-            title: 'Tagihan',
-            subtitle: 'Belum ada layout tambahan untuk tab ini.',
-          ),
-          _PatientPlaceholderPage(
-            title: 'Profil',
-            subtitle: 'Belum ada layout tambahan untuk tab ini.',
-          ),
-        ],
-      ),
+      body: _currentPage(),
       bottomNavigationBar: _PatientBottomNavigationBar(
         selectedIndex: _selectedIndex,
         onSelected: _selectTab,
@@ -57,7 +97,13 @@ class _PatientHomePageState extends State<PatientHomePage> {
 }
 
 class _PatientDashboardPage extends StatelessWidget {
-  const _PatientDashboardPage();
+  const _PatientDashboardPage({
+    required this.onOpenNotifications,
+    required this.onOpenSearchDoctor,
+  });
+
+  final VoidCallback onOpenNotifications;
+  final VoidCallback onOpenSearchDoctor;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +143,10 @@ class _PatientDashboardPage extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const _GreetingBlock(),
-                            _NotificationButton(onTap: () {}, badgeCount: 1),
+                            _NotificationButton(
+                              onTap: onOpenNotifications,
+                              badgeCount: 1,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 24),
@@ -129,7 +178,7 @@ class _PatientDashboardPage extends StatelessWidget {
                     const SizedBox(height: 8),
                     const _SectionHeader(title: 'Menu Cepat'),
                     const SizedBox(height: 16),
-                    const _QuickMenuGrid(),
+                    _QuickMenuGrid(onOpenSearchDoctor: onOpenSearchDoctor),
                     const SizedBox(height: 24),
                     const _ClinicInfoCard(),
                   ],
@@ -143,32 +192,396 @@ class _PatientDashboardPage extends StatelessWidget {
   }
 }
 
-class _GreetingBlock extends StatelessWidget {
-  const _GreetingBlock();
+class _AppointmentsPage extends StatelessWidget {
+  const _AppointmentsPage({required this.onOpenSearchDoctor});
+
+  final VoidCallback onOpenSearchDoctor;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Selamat pagi 👋',
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-            height: 1.2,
-            letterSpacing: 0.2,
-          ),
+    return PatientScreenBackground(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const _SimpleTopHeader(
+              title: 'Appointment Saya',
+              subtitle: '2 appointment selesai',
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+                children: [
+                  _AppointmentCard(
+                    status: 'Selesai',
+                    date: '05 Apr 2026',
+                    time: '09:00',
+                  ),
+                  const SizedBox(height: 16),
+                  _AppointmentCard(
+                    status: 'Selesai',
+                    date: '21 Mar 2026',
+                    time: '10:30',
+                  ),
+                  const SizedBox(height: 16),
+                  _AppointmentCard(
+                    status: 'Selesai',
+                    date: '09 Mar 2026',
+                    time: '08:45',
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: onOpenSearchDoctor,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Buat Appointment'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF009966),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        SizedBox(height: 4),
-        Text(
-          'Andi Pratama',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFFD0FAE5),
-            height: 1.2,
+      ),
+    );
+  }
+}
+
+class _SearchDoctorPage extends StatelessWidget {
+  const _SearchDoctorPage({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return PatientScreenBackground(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _SimpleTopHeader(
+              title: 'Cari Dokter',
+              subtitle: '3 dokter tersedia hari ini',
+              leading: IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Color(0xFF4A5565),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+                children: const [
+                  _DoctorSearchCard(nameInitial: 'B', available: true),
+                  SizedBox(height: 16),
+                  _DoctorSearchCard(nameInitial: 'S', available: true),
+                  SizedBox(height: 16),
+                  _DoctorSearchCard(nameInitial: 'R', available: false),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RekamMedisListPage extends StatelessWidget {
+  const _RekamMedisListPage({required this.onOpenDetail});
+
+  final VoidCallback onOpenDetail;
+
+  @override
+  Widget build(BuildContext context) {
+    return PatientScreenBackground(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const _SimpleTopHeader(
+              title: 'Rekam Medis Saya',
+              subtitle: '1 rekam medis tersimpan',
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
+                children: [
+                  GestureDetector(
+                    onTap: onOpenDetail,
+                    child: const _MedicalRecordCard(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RekamMedisDetailPage extends StatelessWidget {
+  const _RekamMedisDetailPage({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return PatientScreenBackground(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _SimpleTopHeader(
+              title: 'Detail Rekam Medis',
+              subtitle: '09 April 2026',
+              leading: IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Color(0xFF4A5565),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+                children: const [
+                  _DoctorSummaryCard(),
+                  SizedBox(height: 16),
+                  _VitalSignsCard(),
+                  SizedBox(height: 16),
+                  _DetailTextCard(
+                    title: 'Diagnosis',
+                    content: 'ISPA (Infeksi Saluran Pernapasan Atas).',
+                  ),
+                  SizedBox(height: 16),
+                  _DetailTextCard(
+                    title: 'Resep Obat',
+                    content: 'Paracetamol 500mg 3x1 dan Ambroxol 30mg 2x1.',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BillsPage extends StatelessWidget {
+  const _BillsPage({required this.onOpenDetail});
+
+  final VoidCallback onOpenDetail;
+
+  @override
+  Widget build(BuildContext context) {
+    return PatientScreenBackground(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const _SimpleTopHeader(
+              title: 'Tagihan Saya',
+              subtitle: '2 tagihan tercatat',
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+                children: [
+                  GestureDetector(
+                    onTap: onOpenDetail,
+                    child: const _BillCard(status: 'Lunas'),
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: onOpenDetail,
+                    child: const _BillCard(status: 'Belum Bayar'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BillDetailDialogPage extends StatelessWidget {
+  const _BillDetailDialogPage({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        const _BillsPage(onOpenDetail: _noop),
+        Container(color: const Color(0x80000000)),
+        SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 700,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FB),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 15,
+                    offset: Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Detail Tagihan',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: onBack,
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const _DetailInfoRow(
+                      iconBg: Color(0xFFF3E8FF),
+                      icon: Icons.medical_services_rounded,
+                      label: 'Dokter',
+                      value: 'dr. Budi Santoso, Sp.PD',
+                    ),
+                    const SizedBox(height: 12),
+                    const _DetailInfoRow(
+                      iconBg: Color(0xFFDBEAFE),
+                      icon: Icons.calendar_month_rounded,
+                      label: 'Tanggal',
+                      value: '05 Apr 2026',
+                    ),
+                    const SizedBox(height: 16),
+                    const _BillBreakdownCard(),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFDBEAFE)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Metode Pembayaran',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF155DFC),
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Transfer Bank BCA',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1C398E),
+                                ),
+                              ),
+                            ],
+                          ),
+                          _StatusChip(label: 'Lunas'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFA4F4CF)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: Color(0xFF007A55),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Pembayaran berhasil diverifikasi oleh sistem.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF007A55),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.download_rounded),
+                        label: const Text('Unduh Invoice'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF009966),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ],
@@ -176,55 +589,1416 @@ class _GreetingBlock extends StatelessWidget {
   }
 }
 
-class _NotificationButton extends StatelessWidget {
-  const _NotificationButton({required this.onTap, required this.badgeCount});
+class _NotificationsPage extends StatelessWidget {
+  const _NotificationsPage({required this.onBack});
 
-  final VoidCallback onTap;
-  final int badgeCount;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
+    return PatientScreenBackground(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _SimpleTopHeader(
+              title: 'Notifikasi',
+              subtitle: '3 notifikasi terbaru',
+              leading: IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Color(0xFF4A5565),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+                children: const [
+                  _NotificationCard(
+                    highlighted: true,
+                    title: 'Appointment Besok',
+                    message:
+                        'Reminder: Anda memiliki appointment dengan dr. Budi Santoso besok pukul 09:00.',
+                    time: 'sekitar 2 jam yang lalu',
+                  ),
+                  SizedBox(height: 12),
+                  _NotificationCard(
+                    highlighted: false,
+                    title: 'Pembayaran Berhasil',
+                    message:
+                        'Pembayaran tagihan kunjungan tanggal 05 Apr 2026 sudah lunas.',
+                    time: 'kemarin',
+                  ),
+                  SizedBox(height: 12),
+                  _NotificationCard(
+                    highlighted: false,
+                    title: 'Rekam Medis Baru',
+                    message:
+                        'Rekam medis Anda sudah tersedia dan dapat diakses sekarang.',
+                    time: '2 hari lalu',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfilePage extends StatelessWidget {
+  const _ProfilePage();
+
+  @override
+  Widget build(BuildContext context) {
+    return PatientScreenBackground(
+      child: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
+          children: const [
+            _ProfileHeroCard(),
+            SizedBox(height: 20),
+            _ProfileInfoCard(),
+            SizedBox(height: 20),
+            _ProfileSettingsCard(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SimpleTopHeader extends StatelessWidget {
+  const _SimpleTopHeader({
+    required this.title,
+    required this.subtitle,
+    this.leading,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget? leading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (leading != null) ...[leading!, const SizedBox(width: 4)],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101828),
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4A5565),
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AppointmentCard extends StatelessWidget {
+  const _AppointmentCard({
+    required this.status,
+    required this.date,
+    required this.time,
+  });
+
+  final String status;
+  final String date;
+  final String time;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'dr. Budi Santoso, Sp.PD',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF101828),
+                ),
+              ),
+              _StatusChip(label: status),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Spesialis Penyakit Dalam',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF4A5565),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(
+                Icons.calendar_month_outlined,
+                size: 16,
+                color: Color(0xFF4A5565),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                date,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF4A5565),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('•', style: TextStyle(color: Color(0xFF99A1AF))),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.schedule_outlined,
+                size: 16,
+                color: Color(0xFF4A5565),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                time,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF4A5565),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DoctorSearchCard extends StatelessWidget {
+  const _DoctorSearchCard({required this.nameInitial, required this.available});
+
+  final String nameInitial;
+  final bool available;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF00BC7D), Color(0xFF009966)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x80A4F4CF),
+                  blurRadius: 15,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              nameInitial,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'dr. Budi Santoso, Sp.PD',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF101828),
+                      ),
+                    ),
+                    _StatusChip(label: available ? 'Tersedia' : 'Penuh'),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Spesialis Penyakit Dalam',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4A5565),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFDBEAFE)),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Jadwal Praktik:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF155DFC),
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Senin, Rabu, Jumat',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1C398E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Rp 150.000',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF009966),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF009966),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: const Color(0xFF009966),
+                      disabledForegroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text('Pilih Dokter'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MedicalRecordCard extends StatelessWidget {
+  const _MedicalRecordCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: const [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Color(0xFFF3E8FF),
+                    child: Icon(
+                      Icons.description_rounded,
+                      color: Color(0xFF9810FA),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '09 April 2026',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF101828),
+                        ),
+                      ),
+                      Text(
+                        'dr. Budi Santoso, Sp.PD',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF4A5565),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              _StatusChip(label: 'Resep'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(13, 13, 13, 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              border: Border.all(color: const Color(0xFFF3F4F6)),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Diagnosis',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6A7282),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'ISPA (Infeksi Saluran Pernapasan Atas)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF101828),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BillCard extends StatelessWidget {
+  const _BillCard({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: const [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Color(0xFFFEF3C6),
+                    child: Icon(
+                      Icons.receipt_long_rounded,
+                      color: Color(0xFFE17100),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '05 Apr 2026',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF101828),
+                        ),
+                      ),
+                      Text(
+                        'dr. Budi Santoso, Sp.PD',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF4A5565),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              _StatusChip(label: status),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: [Color(0xFFF9FAFB), Color(0xFFF3F4F6)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: const Column(
+              children: [
+                _BillLine(label: 'Biaya Konsultasi', value: 'Rp 150.000'),
+                SizedBox(height: 8),
+                _BillLine(label: 'Biaya Obat', value: 'Rp 200.000'),
+                SizedBox(height: 12),
+                Divider(height: 1, color: Color(0xFFD1D5DC)),
+                SizedBox(height: 12),
+                _BillLine(label: 'Total', value: 'Rp 350.000', large: true),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BillLine extends StatelessWidget {
+  const _BillLine({
+    required this.label,
+    required this.value,
+    this.large = false,
+  });
+
+  final String label;
+  final String value;
+  final bool large;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = TextStyle(
+      fontSize: large ? 16 : 12,
+      fontWeight: large ? FontWeight.w700 : FontWeight.w600,
+      color: const Color(0xFF4A5565),
+    );
+    final valueStyle = TextStyle(
+      fontSize: large ? 20 : 12,
+      fontWeight: FontWeight.w700,
+      color: large ? const Color(0xFF009966) : const Color(0xFF101828),
+    );
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: labelStyle),
+        Text(value, style: valueStyle),
+      ],
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPending = label == 'Belum Bayar' || label == 'Penuh';
+    final bg = isPending ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5);
+    final border = isPending
+        ? const Color(0xFFFEE685)
+        : const Color(0xFFA4F4CF);
+    final text = isPending ? const Color(0xFFBB4D00) : const Color(0xFF007A55);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: text,
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationCard extends StatelessWidget {
+  const _NotificationCard({
+    required this.highlighted,
+    required this.title,
+    required this.message,
+    required this.time,
+  });
+
+  final bool highlighted;
+  final String title;
+  final String message;
+  final String time;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: highlighted ? const Color(0x4DECFDF5) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: highlighted
+              ? const Color(0xFFA4F4CF)
+              : const Color(0xFFF3F4F6),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(21, 21, 16, 21),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
+              color: highlighted
+                  ? const Color(0xFFFEF3C6)
+                  : const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(
-              Icons.notifications_none_rounded,
-              color: Colors.white,
-              size: 24,
+            child: Icon(
+              highlighted
+                  ? Icons.calendar_month_rounded
+                  : Icons.notifications_active_rounded,
+              color: highlighted
+                  ? const Color(0xFFE17100)
+                  : const Color(0xFF155DFC),
             ),
           ),
-          Positioned(
-            right: -4,
-            top: -4,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFB2C36),
-                shape: BoxShape.circle,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF101828),
+                        ),
+                      ),
+                    ),
+                    if (highlighted)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: CircleAvatar(
+                          radius: 4,
+                          backgroundColor: Color(0xFF009966),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF364153),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  time,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6A7282),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DoctorSummaryCard extends StatelessWidget {
+  const _DoctorSummaryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.fromLTRB(21, 21, 16, 21),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFAD46FF), Color(0xFF9810FA)],
               ),
-              alignment: Alignment.center,
-              child: Text(
-                '$badgeCount',
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.person_rounded, color: Colors.white),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Diperiksa oleh',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6A7282),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'dr. Budi Santoso, Sp.PD',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101828),
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Spesialis Penyakit Dalam',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4A5565),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VitalSignsCard extends StatelessWidget {
+  const _VitalSignsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.favorite_rounded, color: Color(0xFFFB2C36), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Tanda Vital',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF101828),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: const [
+              Expanded(
+                child: _VitalTile(
+                  title: 'Tekanan Darah',
+                  value: '120/80',
+                  unit: 'mmHg',
+                  bg: Color(0xFFEFF6FF),
+                  border: Color(0xFFDBEAFE),
+                  accent: Color(0xFF155DFC),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _VitalTile(
+                  title: 'Berat Badan',
+                  value: '72',
+                  unit: 'kg',
+                  bg: Color(0xFFECFDF5),
+                  border: Color(0xFFD0FAE5),
+                  accent: Color(0xFF009966),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VitalTile extends StatelessWidget {
+  const _VitalTile({
+    required this.title,
+    required this.value,
+    required this.unit,
+    required this.bg,
+    required this.border,
+    required this.accent,
+  });
+
+  final String title;
+  final String value;
+  final String unit;
+  final Color bg;
+  final Color border;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: accent,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: accent,
+            ),
+          ),
+          Text(
+            unit,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: accent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailTextCard extends StatelessWidget {
+  const _DetailTextCard({required this.title, required this.content});
+
+  final String title;
+  final String content;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF101828),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            content,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF4A5565),
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailInfoRow extends StatelessWidget {
+  const _DetailInfoRow({
+    required this.iconBg,
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final Color iconBg;
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: iconBg,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Icon(icon, color: const Color(0xFF4A5565)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  height: 1,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6A7282),
                 ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF101828),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BillBreakdownCard extends StatelessWidget {
+  const _BillBreakdownCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: const Column(
+        children: [
+          _BillLine(label: 'Biaya Konsultasi', value: 'Rp 150.000'),
+          SizedBox(height: 8),
+          _BillLine(label: 'Biaya Obat', value: 'Rp 200.000'),
+          SizedBox(height: 12),
+          Divider(height: 1, color: Color(0xFFD1D5DC)),
+          SizedBox(height: 12),
+          _BillLine(label: 'Total', value: 'Rp 350.000', large: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileHeroCard extends StatelessWidget {
+  const _ProfileHeroCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.fromLTRB(25, 33, 25, 24),
+      child: Column(
+        children: [
+          Container(
+            width: 112,
+            height: 112,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF00BC7D), Color(0xFF009966)],
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x80A4F4CF),
+                  blurRadius: 25,
+                  offset: Offset(0, 20),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: Colors.white,
+              size: 56,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Andi Pratama',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF101828),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'NIK: 3210****1234',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF4A5565),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '29 tahun • Laki-laki',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6A7282),
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.edit_rounded, size: 16),
+            label: const Text('Edit Profil'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1A1A1A),
+              side: const BorderSide(color: Color(0xFFE5E7EB)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfileInfoCard extends StatelessWidget {
+  const _ProfileInfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(24),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Informasi Pribadi',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          SizedBox(height: 16),
+          _InfoRow(
+            iconBg: Color(0xFFEFF6FF),
+            icon: Icons.badge_rounded,
+            label: 'Nama Lengkap',
+            value: 'Andi Pratama',
+          ),
+          SizedBox(height: 12),
+          _InfoRow(
+            iconBg: Color(0xFFFAF5FF),
+            icon: Icons.phone_rounded,
+            label: 'Nomor Telepon',
+            value: '+62 812-3456-7890',
+          ),
+          SizedBox(height: 12),
+          _InfoRow(
+            iconBg: Color(0xFFECFDF5),
+            icon: Icons.email_rounded,
+            label: 'Email',
+            value: 'andi.pratama@email.com',
+          ),
+          SizedBox(height: 12),
+          _InfoRow(
+            iconBg: Color(0xFFFEF3C6),
+            icon: Icons.location_on_rounded,
+            label: 'Alamat',
+            value: 'Jakarta Pusat, DKI Jakarta',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.iconBg,
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final Color iconBg;
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: iconBg,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(icon, color: const Color(0xFF4A5565)),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6A7282),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF101828),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileSettingsCard extends StatelessWidget {
+  const _ProfileSettingsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Pengaturan',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SettingRow(
+            icon: Icons.notifications_rounded,
+            label: 'Notifikasi',
+            onTap: () {},
+          ),
+          const SizedBox(height: 12),
+          _SettingRow(
+            icon: Icons.lock_rounded,
+            label: 'Keamanan Akun',
+            onTap: () {},
+          ),
+          const SizedBox(height: 12),
+          _SettingRow(
+            icon: Icons.logout_rounded,
+            label: 'Keluar',
+            danger: true,
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? const Color(0xFFFB2C36) : const Color(0xFF101828);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFF3F4F6)),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickMenuGrid extends StatelessWidget {
+  const _QuickMenuGrid({required this.onOpenSearchDoctor});
+
+  final VoidCallback onOpenSearchDoctor;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 180 / 134,
+      children: [
+        _QuickMenuCard(
+          title: 'Buat Appointment',
+          icon: Icons.add_rounded,
+          iconGradient: const [Color(0xFF00BC7D), Color(0xFF009966)],
+          shadowColor: const Color(0x80A4F4CF),
+          onTap: onOpenSearchDoctor,
+        ),
+        const _QuickMenuCard(
+          title: 'Riwayat Kunjungan',
+          icon: Icons.history_rounded,
+          iconGradient: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
+          shadowColor: Color(0x80BEDBFF),
+        ),
+        const _QuickMenuCard(
+          title: 'Rekam Medis',
+          icon: Icons.folder_open_rounded,
+          iconGradient: [Color(0xFFAD46FF), Color(0xFF9810FA)],
+          shadowColor: Color(0x80E9D4FF),
+        ),
+        const _QuickMenuCard(
+          title: 'Tagihan Saya',
+          icon: Icons.receipt_long_rounded,
+          iconGradient: [Color(0xFFFE9A00), Color(0xFFE17100)],
+          shadowColor: Color(0x80FEE685),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickMenuCard extends StatelessWidget {
+  const _QuickMenuCard({
+    required this.title,
+    required this.icon,
+    required this.iconGradient,
+    required this.shadowColor,
+    this.onTap,
+  });
+
+  final String title;
+  final IconData icon;
+  final List<Color> iconGradient;
+  final Color shadowColor;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: _cardDecoration,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Column(
+            children: [
+              const SizedBox(height: 18),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: iconGradient,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: shadowColor,
+                      blurRadius: 15,
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: shadowColor,
+                      blurRadius: 6,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: Colors.white, size: 28),
+              ),
+              const SizedBox(height: 18),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101828),
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -236,18 +2010,15 @@ class _ActiveAppointmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF3F4F6), width: 1),
+      decoration: _cardDecoration.copyWith(
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14000000),
+            color: Color(0x1A000000),
             blurRadius: 25,
             offset: Offset(0, 20),
           ),
           BoxShadow(
-            color: Color(0x0A000000),
+            color: Color(0x14000000),
             blurRadius: 10,
             offset: Offset(0, 8),
           ),
@@ -260,8 +2031,8 @@ class _ActiveAppointmentCard extends StatelessWidget {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
+              children: const [
+                Text(
                   'Appointment Aktif',
                   style: TextStyle(
                     fontSize: 14,
@@ -270,26 +2041,7 @@ class _ActiveAppointmentCard extends StatelessWidget {
                     height: 1.2,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFFEE685)),
-                  ),
-                  child: const Text(
-                    'Menunggu',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFBB4D00),
-                      height: 1.2,
-                    ),
-                  ),
-                ),
+                _StatusChip(label: 'Menunggu'),
               ],
             ),
             const SizedBox(height: 16),
@@ -306,18 +2058,6 @@ class _ActiveAppointmentCard extends StatelessWidget {
                       end: Alignment.bottomRight,
                       colors: [Color(0xFF00BC7D), Color(0xFF009966)],
                     ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x80A4F4CF),
-                        blurRadius: 15,
-                        offset: Offset(0, 10),
-                      ),
-                      BoxShadow(
-                        color: Color(0x80A4F4CF),
-                        blurRadius: 6,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
                   ),
                   alignment: Alignment.center,
                   child: const Text(
@@ -331,11 +2071,11 @@ class _ActiveAppointmentCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                Expanded(
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'dr. Budi Santoso, Sp.PD',
                         style: TextStyle(
                           fontSize: 18,
@@ -344,8 +2084,8 @@ class _ActiveAppointmentCard extends StatelessWidget {
                           height: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
+                      SizedBox(height: 4),
+                      Text(
                         'Spesialis Penyakit Dalam',
                         style: TextStyle(
                           fontSize: 14,
@@ -354,11 +2094,11 @@ class _ActiveAppointmentCard extends StatelessWidget {
                           height: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Wrap(
                         spacing: 16,
                         runSpacing: 8,
-                        children: const [
+                        children: [
                           _MetaChip(
                             icon: Icons.calendar_month_outlined,
                             text: '09 Apr 2026',
@@ -369,44 +2109,44 @@ class _ActiveAppointmentCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF9FAFB),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFF3F4F6)),
-                        ),
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Keluhan:',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF6A7282),
-                                height: 1.2,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Demam tinggi sejak 2 hari yang lalu, disertai batuk kering',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1E2939),
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFF3F4F6)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Keluhan:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6A7282),
+                      height: 1.2,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Demam tinggi sejak 2 hari yang lalu, disertai batuk kering',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E2939),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Container(
@@ -475,132 +2215,6 @@ class _SectionHeader extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: Color(0xFF101828),
         height: 1.2,
-      ),
-    );
-  }
-}
-
-class _QuickMenuGrid extends StatelessWidget {
-  const _QuickMenuGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      childAspectRatio: 180 / 134,
-      children: const [
-        _QuickMenuCard(
-          title: 'Buat Appointment',
-          icon: Icons.add_rounded,
-          iconGradient: [Color(0xFF00BC7D), Color(0xFF009966)],
-          shadowColor: Color(0x80A4F4CF),
-        ),
-        _QuickMenuCard(
-          title: 'Riwayat Kunjungan',
-          icon: Icons.history_rounded,
-          iconGradient: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
-          shadowColor: Color(0x80BEDBFF),
-        ),
-        _QuickMenuCard(
-          title: 'Rekam Medis',
-          icon: Icons.folder_open_rounded,
-          iconGradient: [Color(0xFFAD46FF), Color(0xFF9810FA)],
-          shadowColor: Color(0x80E9D4FF),
-        ),
-        _QuickMenuCard(
-          title: 'Tagihan Saya',
-          icon: Icons.receipt_long_rounded,
-          iconGradient: [Color(0xFFFE9A00), Color(0xFFE17100)],
-          shadowColor: Color(0x80FEE685),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickMenuCard extends StatelessWidget {
-  const _QuickMenuCard({
-    required this.title,
-    required this.icon,
-    required this.iconGradient,
-    required this.shadowColor,
-  });
-
-  final String title;
-  final IconData icon;
-  final List<Color> iconGradient;
-  final Color shadowColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF3F4F6), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 25,
-            offset: Offset(0, 20),
-          ),
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 10,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Column(
-          children: [
-            const SizedBox(height: 18),
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: iconGradient,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: shadowColor,
-                    blurRadius: 15,
-                    offset: const Offset(0, 10),
-                  ),
-                  BoxShadow(
-                    color: shadowColor,
-                    blurRadius: 6,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(icon, color: Colors.white, size: 28),
-            ),
-            const SizedBox(height: 18),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF101828),
-                  height: 1.2,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -729,6 +2343,93 @@ class _ClinicInfoRow extends StatelessWidget {
   }
 }
 
+class _GreetingBlock extends StatelessWidget {
+  const _GreetingBlock();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Selamat pagi 👋',
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            height: 1.2,
+            letterSpacing: 0.2,
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          'Andi Pratama',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFFD0FAE5),
+            height: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotificationButton extends StatelessWidget {
+  const _NotificationButton({required this.onTap, required this.badgeCount});
+
+  final VoidCallback onTap;
+  final int badgeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.notifications_none_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          Positioned(
+            right: -4,
+            top: -4,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFB2C36),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$badgeCount',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PatientBottomNavigationBar extends StatelessWidget {
   const _PatientBottomNavigationBar({
     required this.selectedIndex,
@@ -817,143 +2518,61 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color activeColor = const Color(0xFF009966);
-    final Color inactiveColor = const Color(0xFF99A1AF);
+    const Color activeColor = Color(0xFF009966);
+    const Color inactiveColor = Color(0xFF99A1AF);
 
     return Expanded(
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
           height: 80,
-          child: Stack(
-            clipBehavior: Clip.none,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  const SizedBox(height: 4),
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Icon(
-                        icon,
-                        size: 24,
-                        color: selected ? activeColor : inactiveColor,
-                      ),
-                      if (badgeCount != null)
-                        Positioned(
-                          right: -10,
-                          top: -10,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFB2C36),
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '$badgeCount',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                height: 1,
-                              ),
-                            ),
+                  Icon(
+                    icon,
+                    size: 24,
+                    color: selected ? activeColor : inactiveColor,
+                  ),
+                  if (badgeCount != null)
+                    Positioned(
+                      right: -10,
+                      top: -10,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFB2C36),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$badgeCount',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1,
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? activeColor : inactiveColor,
-                      height: 1.2,
+                      ),
                     ),
-                  ),
                 ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? activeColor : inactiveColor,
+                  height: 1.2,
+                ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PatientPlaceholderPage extends StatelessWidget {
-  const _PatientPlaceholderPage({required this.title, required this.subtitle});
-
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return PatientScreenBackground(
-      child: SafeArea(
-        bottom: false,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 360),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFF3F4F6)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x14000000),
-                    blurRadius: 25,
-                    offset: Offset(0, 20),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Icon(
-                      Icons.construction_rounded,
-                      color: Color(0xFF155DFC),
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF101828),
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4A5565),
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ),
@@ -978,3 +2597,15 @@ class _HeroBlob extends StatelessWidget {
     );
   }
 }
+
+const BoxDecoration _cardDecoration = BoxDecoration(
+  color: Colors.white,
+  borderRadius: BorderRadius.all(Radius.circular(20)),
+  border: Border.fromBorderSide(BorderSide(color: Color(0xFFF3F4F6), width: 1)),
+  boxShadow: [
+    BoxShadow(color: Color(0x1A000000), blurRadius: 3, offset: Offset(0, 1)),
+    BoxShadow(color: Color(0x0D000000), blurRadius: 2, offset: Offset(0, 1)),
+  ],
+);
+
+void _noop() {}

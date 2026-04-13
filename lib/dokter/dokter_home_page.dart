@@ -4,6 +4,7 @@ import 'jadwal_praktik_page.dart';
 import 'rekam_medis_page.dart';
 import 'profil_dokter_page.dart';
 import 'pemeriksaan_page.dart';
+import '../widgets/doctor_shared_widgets.dart';
 
 class DokterHomePage extends StatefulWidget {
   const DokterHomePage({super.key});
@@ -16,40 +17,20 @@ class _DokterHomePageState extends State<DokterHomePage> {
   int _selectedIndex = 0;
   bool _isInPemeriksaanFlow = false;
 
-  void _goToDashboard() {
+  void _setPageState(int index, {bool inPemeriksaanFlow = false}) {
     setState(() {
-      _selectedIndex = 0;
-      _isInPemeriksaanFlow = false;
+      _selectedIndex = index;
+      _isInPemeriksaanFlow = inPemeriksaanFlow;
     });
   }
+
+  void _goToDashboard() => _setPageState(0);
 
   void _openPemeriksaan() {
-    setState(() {
-      _selectedIndex = 1;
-      _isInPemeriksaanFlow = true;
-    });
+    _setPageState(1, inPemeriksaanFlow: true);
   }
 
-  void _backToAntrianList() {
-    setState(() {
-      _selectedIndex = 1;
-      _isInPemeriksaanFlow = false;
-    });
-  }
-
-  void _goToDashboardFromRekamMedis() {
-    setState(() {
-      _selectedIndex = 0;
-      _isInPemeriksaanFlow = false;
-    });
-  }
-
-  void _goToDashboardFromOtherPages() {
-    setState(() {
-      _selectedIndex = 0;
-      _isInPemeriksaanFlow = false;
-    });
-  }
+  void _backToAntrianList() => _setPageState(1);
 
   @override
   Widget build(BuildContext context) {
@@ -61,9 +42,9 @@ class _DokterHomePageState extends State<DokterHomePage> {
               onBack: _goToDashboard,
               onStartExam: _openPemeriksaan,
             ),
-      DokterRekamMedisPage(onBackToDashboard: _goToDashboardFromRekamMedis),
-      DokterJadwalPraktikPage(onBackToDashboard: _goToDashboardFromOtherPages),
-      DokterProfilPage(onBackToDashboard: _goToDashboardFromOtherPages),
+      DokterRekamMedisPage(onBackToDashboard: _goToDashboard),
+      DokterJadwalPraktikPage(onBackToDashboard: _goToDashboard),
+      DokterProfilPage(onBackToDashboard: _goToDashboard),
     ];
 
     return Scaffold(
@@ -307,98 +288,84 @@ class _DoctorStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF3F4F6), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 3,
-            offset: Offset(0, 1),
+    return DoctorCardContainer(
+      padding: EdgeInsets.fromLTRB(20, 20, 18, 20),
+      child: Row(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
+              ),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
+              Icons.medical_services_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'dr. Budi Santoso, Sp.PD',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101828),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Sp.PD',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF667085),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 32,
+                      height: 18,
+                      child: FittedBox(
+                        child: Switch(
+                          value: true,
+                          onChanged: (_) {},
+                          activeTrackColor: const Color(0xFF155DFC),
+                          activeThumbColor: Colors.white,
+                          thumbColor: WidgetStateProperty.all(
+                            const Color(0xFFFFFFFF),
+                          ),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Sedang Praktik',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF155DFC),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 18, 20),
-        child: Row(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
-                ),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(
-                Icons.medical_services_rounded,
-                color: Colors.white,
-                size: 32,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'dr. Budi Santoso, Sp.PD',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF101828),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Sp.PD',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF667085),
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 32,
-                        height: 18,
-                        child: FittedBox(
-                          child: Switch(
-                            value: true,
-                            onChanged: (_) {},
-                            activeTrackColor: const Color(0xFF155DFC),
-                            activeThumbColor: Colors.white,
-                            thumbColor: WidgetStateProperty.all(
-                              const Color(0xFFFFFFFF),
-                            ),
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Sedang Praktik',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF155DFC),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -422,7 +389,8 @@ class SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return DoctorCardContainer(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -435,7 +403,6 @@ class SummaryCard extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -495,21 +462,8 @@ class QueuePatientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return DoctorCardContainer(
       padding: const EdgeInsets.fromLTRB(20, 20, 18, 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF3F4F6), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 3,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
