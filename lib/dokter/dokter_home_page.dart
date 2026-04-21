@@ -7,7 +7,16 @@ import 'pemeriksaan_page.dart';
 import '../widgets/doctor_shared_widgets.dart';
 
 class DokterHomePage extends StatefulWidget {
-  const DokterHomePage({super.key});
+  const DokterHomePage({
+    super.key,
+    required this.token,
+    required this.user,
+    required this.onLogout,
+  });
+
+  final String token;
+  final Map<String, dynamic> user;
+  final VoidCallback onLogout;
 
   @override
   State<DokterHomePage> createState() => _DokterHomePageState();
@@ -32,6 +41,32 @@ class _DokterHomePageState extends State<DokterHomePage> {
 
   void _backToAntrianList() => _setPageState(1);
 
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Anda yakin ingin keluar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onLogout();
+            },
+            child: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -48,6 +83,27 @@ class _DokterHomePageState extends State<DokterHomePage> {
     ];
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ben Mari Klinik'),
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF101828),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Center(
+              child: Tooltip(
+                message: 'Logout',
+                child: IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  onPressed: _showLogoutDialog,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: pages[_selectedIndex],
       bottomNavigationBar: Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),

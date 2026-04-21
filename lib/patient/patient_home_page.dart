@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 
+import 'doctor_api.dart';
 import 'patient_surface.dart';
 
 class PatientHomePage extends StatefulWidget {
-  const PatientHomePage({super.key});
+  const PatientHomePage({
+    super.key,
+    required this.token,
+    required this.user,
+    required this.onLogout,
+  });
+
+  final String token;
+  final Map<String, dynamic> user;
+  final VoidCallback onLogout;
 
   @override
   State<PatientHomePage> createState() => _PatientHomePageState();
@@ -15,6 +25,8 @@ class _PatientHomePageState extends State<PatientHomePage> {
   bool _showSearchDoctor = false;
   bool _showRekamDetail = false;
   bool _showBillDetail = false;
+  final GlobalKey<_AppointmentsPageState> _appointmentsPageKey =
+      GlobalKey<_AppointmentsPageState>();
 
   void _selectTab(int index) {
     setState(() {
@@ -43,10 +55,10 @@ class _PatientHomePageState extends State<PatientHomePage> {
       case 0:
         return _PatientDashboardPage(
           onOpenNotifications: () => setState(() => _showNotifications = true),
-          onOpenSearchDoctor: () {
+          onOpenAppointments: () {
             setState(() {
               _selectedIndex = 1;
-              _showSearchDoctor = true;
+              _showSearchDoctor = false;
             });
           },
         );
@@ -54,9 +66,12 @@ class _PatientHomePageState extends State<PatientHomePage> {
         if (_showSearchDoctor) {
           return _SearchDoctorPage(
             onBack: () => setState(() => _showSearchDoctor = false),
+            onAppointmentCreated: () =>
+                _appointmentsPageKey.currentState?.reloadAppointments(),
           );
         }
         return _AppointmentsPage(
+          key: _appointmentsPageKey,
           onOpenSearchDoctor: () => setState(() => _showSearchDoctor = true),
         );
       case 2:
@@ -83,9 +98,56 @@ class _PatientHomePageState extends State<PatientHomePage> {
     }
   }
 
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Anda yakin ingin keluar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onLogout();
+            },
+            child: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ben Mari Klinik'),
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: const Color(0xFFF8F9FB),
+        foregroundColor: const Color(0xFF101828),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Center(
+              child: Tooltip(
+                message: 'Logout',
+                child: IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  onPressed: _showLogoutDialog,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       backgroundColor: const Color(0xFFF8F9FB),
       body: _currentPage(),
       bottomNavigationBar: _PatientBottomNavigationBar(
@@ -99,11 +161,11 @@ class _PatientHomePageState extends State<PatientHomePage> {
 class _PatientDashboardPage extends StatelessWidget {
   const _PatientDashboardPage({
     required this.onOpenNotifications,
-    required this.onOpenSearchDoctor,
+    required this.onOpenAppointments,
   });
 
   final VoidCallback onOpenNotifications;
-  final VoidCallback onOpenSearchDoctor;
+  final VoidCallback onOpenAppointments;
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +240,7 @@ class _PatientDashboardPage extends StatelessWidget {
                     const SizedBox(height: 8),
                     const _SectionHeader(title: 'Menu Cepat'),
                     const SizedBox(height: 16),
-                    _QuickMenuGrid(onOpenSearchDoctor: onOpenSearchDoctor),
+                    _QuickMenuGrid(onOpenAppointments: onOpenAppointments),
                     const SizedBox(height: 24),
                     const _ClinicInfoCard(),
                   ],
@@ -192,10 +254,68 @@ class _PatientDashboardPage extends StatelessWidget {
   }
 }
 
-class _AppointmentsPage extends StatelessWidget {
-  const _AppointmentsPage({required this.onOpenSearchDoctor});
+class _AppointmentsPage extends StatefulWidget {
+  const _AppointmentsPage({super.key, required this.onOpenSearchDoctor});
 
   final VoidCallback onOpenSearchDoctor;
+
+  @override
+  State<_AppointmentsPage> createState() => _AppointmentsPageState();
+}
+
+class _AppointmentsPageState extends State<_AppointmentsPage> {
+  static const int _defaultPasienId = int.fromEnvironment(
+    'PASIEN_ID',
+    defaultValue: 1,
+  );
+
+  late Future<List<AppointmentItem>> _appointmentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _appointmentsFuture = const DoctorApi().fetchAppointmentsByPatient(
+      _defaultPasienId,
+    );
+  }
+
+  void reloadAppointments() {
+    setState(() {
+      _appointmentsFuture = const DoctorApi().fetchAppointmentsByPatient(
+        _defaultPasienId,
+      );
+    });
+  }
+
+  String _formatApiDate(String apiDate) {
+    final parts = apiDate.split('-');
+    if (parts.length != 3) {
+      return apiDate;
+    }
+
+    final monthNames = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
+    ];
+
+    final monthIndex = int.tryParse(parts[1]) ?? 0;
+    final month = (monthIndex >= 1 && monthIndex <= 12)
+        ? monthNames[monthIndex]
+        : parts[1];
+
+    return '${parts[2]} $month ${parts[0]}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -209,43 +329,92 @@ class _AppointmentsPage extends StatelessWidget {
               subtitle: '2 appointment selesai',
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
-                children: [
-                  _AppointmentCard(
-                    status: 'Selesai',
-                    date: '05 Apr 2026',
-                    time: '09:00',
-                  ),
-                  const SizedBox(height: 16),
-                  _AppointmentCard(
-                    status: 'Selesai',
-                    date: '21 Mar 2026',
-                    time: '10:30',
-                  ),
-                  const SizedBox(height: 16),
-                  _AppointmentCard(
-                    status: 'Selesai',
-                    date: '09 Mar 2026',
-                    time: '08:45',
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: onOpenSearchDoctor,
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Buat Appointment'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF009966),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+              child: FutureBuilder<List<AppointmentItem>>(
+                future: _appointmentsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Gagal memuat appointment',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF101828),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Color(0xFF6A7282)),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: reloadAppointments,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF009966),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Coba Lagi'),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    );
+                  }
+
+                  final appointments = snapshot.data ?? const [];
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+                    itemCount: appointments.length + 1,
+                    separatorBuilder: (_, index) {
+                      if (index == appointments.length - 1) {
+                        return const SizedBox(height: 24);
+                      }
+
+                      return const SizedBox(height: 16);
+                    },
+                    itemBuilder: (context, index) {
+                      if (index == appointments.length) {
+                        return SizedBox(
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            onPressed: widget.onOpenSearchDoctor,
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Buat Appointment'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF009966),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final item = appointments[index];
+
+                      return _AppointmentCard(
+                        doctorName: item.doctorName,
+                        specialization: item.specialization,
+                        status: item.statusLabel,
+                        date: _formatApiDate(item.date),
+                        time: item.time,
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ],
@@ -255,10 +424,200 @@ class _AppointmentsPage extends StatelessWidget {
   }
 }
 
-class _SearchDoctorPage extends StatelessWidget {
-  const _SearchDoctorPage({required this.onBack});
+class _SearchDoctorPage extends StatefulWidget {
+  const _SearchDoctorPage({
+    required this.onBack,
+    required this.onAppointmentCreated,
+  });
 
   final VoidCallback onBack;
+  final VoidCallback onAppointmentCreated;
+
+  @override
+  State<_SearchDoctorPage> createState() => _SearchDoctorPageState();
+}
+
+class _SearchDoctorPageState extends State<_SearchDoctorPage> {
+  static const int _defaultPasienId = int.fromEnvironment(
+    'PASIEN_ID',
+    defaultValue: 1,
+  );
+
+  late Future<List<DoctorItem>> _doctorFuture;
+  String? _submittingDoctorId;
+
+  @override
+  void initState() {
+    super.initState();
+    _doctorFuture = const DoctorApi().fetchDoctors();
+  }
+
+  void _reloadDoctors() {
+    setState(() {
+      _doctorFuture = const DoctorApi().fetchDoctors();
+    });
+  }
+
+  String _formatDate(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+
+    return '${value.year}-$month-$day';
+  }
+
+  String _formatTime(TimeOfDay value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+
+    return '$hour:$minute';
+  }
+
+  Future<void> _onPickDoctor(DoctorItem doctor) async {
+    final dokterId = int.tryParse(doctor.id);
+    if (dokterId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ID dokter tidak valid. Coba refresh data.'),
+        ),
+      );
+      return;
+    }
+
+    final today = DateTime.now();
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: today,
+      firstDate: today,
+      lastDate: DateTime(today.year + 1),
+      helpText: 'Pilih tanggal appointment',
+    );
+
+    if (!mounted || selectedDate == null) {
+      return;
+    }
+
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 9, minute: 0),
+      helpText: 'Pilih jam appointment',
+    );
+
+    if (!mounted || selectedTime == null) {
+      return;
+    }
+
+    final keluhanController = TextEditingController();
+    final catatanController = TextEditingController();
+
+    final submit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Konfirmasi Appointment'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Dokter: ${doctor.name}'),
+                const SizedBox(height: 4),
+                Text('Tanggal: ${_formatDate(selectedDate)}'),
+                const SizedBox(height: 4),
+                Text('Jam: ${_formatTime(selectedTime)}'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: keluhanController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Keluhan awal',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: catatanController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Catatan (opsional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF009966),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Simpan'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || submit != true) {
+      return;
+    }
+
+    setState(() {
+      _submittingDoctorId = doctor.id;
+    });
+
+    try {
+      final response = await const DoctorApi().createAppointment(
+        AppointmentPayload(
+          pasienId: _defaultPasienId,
+          dokterId: dokterId,
+          tanggalAppointment: _formatDate(selectedDate),
+          jamAppointment: _formatTime(selectedTime),
+          keluhanAwal: keluhanController.text.trim(),
+          catatan: catatanController.text.trim(),
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final queue = response['NOMOR_ANTRIAN'];
+      widget.onAppointmentCreated();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            queue != null
+                ? 'Appointment berhasil dibuat. Nomor antrian: $queue'
+                : 'Appointment berhasil dibuat.',
+          ),
+          backgroundColor: const Color(0xFF009966),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$error'),
+          backgroundColor: const Color(0xFFBB4D00),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submittingDoctorId = null;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -269,9 +628,9 @@ class _SearchDoctorPage extends StatelessWidget {
           children: [
             _SimpleTopHeader(
               title: 'Cari Dokter',
-              subtitle: '3 dokter tersedia hari ini',
+              subtitle: 'Data dokter dari backend',
               leading: IconButton(
-                onPressed: onBack,
+                onPressed: widget.onBack,
                 icon: const Icon(
                   Icons.arrow_back_rounded,
                   color: Color(0xFF4A5565),
@@ -279,15 +638,83 @@ class _SearchDoctorPage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
-                children: const [
-                  _DoctorSearchCard(nameInitial: 'B', available: true),
-                  SizedBox(height: 16),
-                  _DoctorSearchCard(nameInitial: 'S', available: true),
-                  SizedBox(height: 16),
-                  _DoctorSearchCard(nameInitial: 'R', available: false),
-                ],
+              child: FutureBuilder<List<DoctorItem>>(
+                future: _doctorFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Gagal memuat data dokter',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF101828),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Color(0xFF6A7282)),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _reloadDoctors,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF009966),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Coba Lagi'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final doctors = snapshot.data ?? const [];
+                  if (doctors.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'Belum ada data dokter.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF6A7282),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+                    itemCount: doctors.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final doctor = doctors[index];
+
+                      return _DoctorSearchCard(
+                        nameInitial: doctor.initial,
+                        name: doctor.name,
+                        specialization: doctor.specialization,
+                        schedule: doctor.schedule,
+                        fee: doctor.fee,
+                        available: doctor.available,
+                        isSubmitting: _submittingDoctorId == doctor.id,
+                        onSelect: () => _onPickDoctor(doctor),
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ],
@@ -737,11 +1164,15 @@ class _SimpleTopHeader extends StatelessWidget {
 
 class _AppointmentCard extends StatelessWidget {
   const _AppointmentCard({
+    required this.doctorName,
+    required this.specialization,
     required this.status,
     required this.date,
     required this.time,
   });
 
+  final String doctorName;
+  final String specialization;
   final String status;
   final String date;
   final String time;
@@ -757,21 +1188,26 @@ class _AppointmentCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'dr. Budi Santoso, Sp.PD',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF101828),
+              Expanded(
+                child: Text(
+                  doctorName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101828),
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               _StatusChip(label: status),
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Spesialis Penyakit Dalam',
-            style: TextStyle(
+          Text(
+            'Spesialis $specialization',
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Color(0xFF4A5565),
@@ -820,10 +1256,25 @@ class _AppointmentCard extends StatelessWidget {
 }
 
 class _DoctorSearchCard extends StatelessWidget {
-  const _DoctorSearchCard({required this.nameInitial, required this.available});
+  const _DoctorSearchCard({
+    required this.nameInitial,
+    required this.name,
+    required this.specialization,
+    required this.schedule,
+    required this.fee,
+    required this.available,
+    required this.isSubmitting,
+    required this.onSelect,
+  });
 
   final String nameInitial;
+  final String name;
+  final String specialization;
+  final String schedule;
+  final String fee;
   final bool available;
+  final bool isSubmitting;
+  final VoidCallback onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -869,20 +1320,25 @@ class _DoctorSearchCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'dr. Budi Santoso, Sp.PD',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF101828),
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF101828),
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     _StatusChip(label: available ? 'Tersedia' : 'Penuh'),
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Spesialis Penyakit Dalam',
+                Text(
+                  specialization,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -900,10 +1356,10 @@ class _DoctorSearchCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0xFFDBEAFE)),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Jadwal Praktik:',
                         style: TextStyle(
                           fontSize: 12,
@@ -911,9 +1367,9 @@ class _DoctorSearchCard extends StatelessWidget {
                           color: Color(0xFF155DFC),
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Senin, Rabu, Jumat',
+                        schedule,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -924,8 +1380,8 @@ class _DoctorSearchCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Rp 150.000',
+                Text(
+                  fee,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -936,7 +1392,7 @@ class _DoctorSearchCard extends StatelessWidget {
                 SizedBox(
                   height: 40,
                   child: ElevatedButton(
-                    onPressed: null,
+                    onPressed: available && !isSubmitting ? onSelect : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF009966),
                       foregroundColor: Colors.white,
@@ -946,7 +1402,18 @@ class _DoctorSearchCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text('Pilih Dokter'),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : const Text('Pilih Dokter'),
                   ),
                 ),
               ],
@@ -1886,9 +2353,9 @@ class _SettingRow extends StatelessWidget {
 }
 
 class _QuickMenuGrid extends StatelessWidget {
-  const _QuickMenuGrid({required this.onOpenSearchDoctor});
+  const _QuickMenuGrid({required this.onOpenAppointments});
 
-  final VoidCallback onOpenSearchDoctor;
+  final VoidCallback onOpenAppointments;
 
   @override
   Widget build(BuildContext context) {
@@ -1905,7 +2372,7 @@ class _QuickMenuGrid extends StatelessWidget {
           icon: Icons.add_rounded,
           iconGradient: const [Color(0xFF00BC7D), Color(0xFF009966)],
           shadowColor: const Color(0x80A4F4CF),
-          onTap: onOpenSearchDoctor,
+          onTap: onOpenAppointments,
         ),
         const _QuickMenuCard(
           title: 'Riwayat Kunjungan',
