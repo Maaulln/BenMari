@@ -4,6 +4,7 @@ import {
   authenticatePasien,
   authenticateDokter,
   authenticateAdmin,
+  registerPasien,
 } from '../repositories/authRepository.js';
 
 const router = express.Router();
@@ -156,6 +157,36 @@ router.post('/login-admin', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Terjadi kesalahan saat login',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/auth/register-pasien
+ * Register akun pasien baru
+ */
+router.post('/register-pasien', async (req, res) => {
+  try {
+    const authResult = await registerPasien(req.body || {});
+    if (!authResult.success) {
+      const statusCode = authResult.error === 'Email sudah terdaftar' ? 409 : 400;
+      return res.status(statusCode).json({
+        success: false,
+        message: authResult.error,
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Registrasi pasien berhasil',
+      user: authResult.data,
+    });
+  } catch (error) {
+    console.error('Register error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat registrasi',
       error: error.message,
     });
   }

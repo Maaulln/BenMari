@@ -6,6 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
+    "dev:clean": "node scripts/dev-clean-port.js",
     "start": "node src/server.js"
   },
   "dependencies": {

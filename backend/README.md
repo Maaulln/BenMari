@@ -28,6 +28,23 @@ npm run dev
 - `GET /api/doctors/meta/tables` - lihat semua nama tabel pada schema user aktif.
 - `GET /api/appointments?pasienId=1` - ambil list appointment milik pasien.
 - `POST /api/appointments` - buat appointment baru.
+- `POST /api/auth/register-pasien` - registrasi akun pasien baru (insert ke tabel `PASIEN` di Oracle).
+
+Contoh body `POST /api/auth/register-pasien`:
+
+```json
+{
+	"name": "Budi Santoso",
+	"email": "budi@email.com",
+	"password": "password123",
+	"phone": "081234567890",
+	"address": "Jl. Merdeka No. 10",
+	"birthDate": "1998-05-20",
+	"gender": "L",
+	"nik": "3524012005980001",
+	"bloodType": "O"
+}
+```
 
 Contoh body `POST /api/appointments`:
 

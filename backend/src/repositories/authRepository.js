@@ -193,3 +193,137 @@ export async function authenticateAdmin(email, password) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Register a new patient account (PASIEN)
+ * @param {object} payload - registration data
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export async function registerPasien(payload = {}) {
+  const {
+    name,
+    email,
+    password,
+    phone,
+    address,
+    birthDate,
+    gender,
+    nik,
+    bloodType,
+  } = payload;
+
+  if (!name || !email || !password || !phone || !address || !birthDate || !gender) {
+    return {
+      success: false,
+      error: 'Nama, email, password, telepon, alamat, tanggal lahir, dan jenis kelamin wajib diisi',
+    };
+  }
+
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const normalizedGender = String(gender).trim().toUpperCase() === 'P' ? 'P' : 'L';
+  const normalizedNik = String(nik || `${Date.now()}`)
+    .replace(/\D/g, '')
+    .padEnd(16, '0')
+    .slice(0, 16);
+  const normalizedBloodType = String(bloodType || '-').trim().toUpperCase();
+
+  let conn;
+  try {
+    conn = await getConnection();
+
+    const checkResult = await conn.execute(
+      `SELECT PASIEN_ID
+       FROM PASIEN
+       WHERE LOWER(EMAIL_PASIEN) = :email`,
+      { email: normalizedEmail }
+    );
+
+    const checkRows = normalizeRows(checkResult);
+    if (checkRows.length > 0) {
+      return { success: false, error: 'Email sudah terdaftar' };
+    }
+
+    await conn.execute(
+      `INSERT INTO PASIEN (
+        NIK,
+        NAMA_LENGKAP,
+        TANGGAL_LAHIR,
+        JENIS_KELAMIN,
+        ALAMAT,
+        NO_TELEPON,
+        EMAIL,
+        GOLONGAN_DARAH,
+        STATUS_AKTIF,
+        CREATED_AT,
+        EMAIL_PASIEN,
+        PASSWORD_PASIEN
+      ) VALUES (
+        :nik,
+        :name,
+        TO_DATE(:birthDate, 'YYYY-MM-DD'),
+        :gender,
+        :address,
+        :phone,
+        :email,
+        :bloodType,
+        'Y',
+        SYSTIMESTAMP,
+        :email,
+        :password
+      )`,
+      {
+        nik: normalizedNik,
+        name: String(name).trim(),
+        birthDate: String(birthDate).trim(),
+        gender: normalizedGender,
+        address: String(address).trim(),
+        phone: String(phone).trim(),
+        email: normalizedEmail,
+        bloodType: normalizedBloodType,
+        password,
+      }
+    );
+
+    await conn.commit();
+
+    const result = await conn.execute(
+      `SELECT PASIEN_ID, NAMA_LENGKAP, EMAIL_PASIEN, NO_TELEPON, ALAMAT, TANGGAL_LAHIR
+       FROM PASIEN
+       WHERE LOWER(EMAIL_PASIEN) = :email`,
+      { email: normalizedEmail }
+    );
+
+    const rows = normalizeRows(result);
+    if (rows.length === 0) {
+      return { success: false, error: 'Gagal membuat akun pasien' };
+    }
+
+    const pasien = rows[0];
+    return {
+      success: true,
+      data: {
+        id: String(pasien.PASIEN_ID),
+        name: pasien.NAMA_LENGKAP,
+        email: pasien.EMAIL_PASIEN,
+        phone: pasien.NO_TELEPON,
+        address: pasien.ALAMAT,
+        birthDate: pasien.TANGGAL_LAHIR,
+        role: 'pasien',
+      },
+    };
+  } catch (error) {
+    console.error('Register error (pasien):', error);
+    if (error?.errorNum === 1) {
+      return { success: false, error: 'Email sudah terdaftar' };
+    }
+    return { success: false, error: error.message };
+  } finally {
+    if (conn) {
+      try {
+        await conn.close();
+      } catch (_) {
+        // ignore close error
+      }
+    }
+  }
+}

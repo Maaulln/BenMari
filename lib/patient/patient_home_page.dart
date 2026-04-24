@@ -54,11 +54,30 @@ class _PatientHomePageState extends State<PatientHomePage> {
     switch (_selectedIndex) {
       case 0:
         return _PatientDashboardPage(
+          user: widget.user,
           onOpenNotifications: () => setState(() => _showNotifications = true),
           onOpenAppointments: () {
             setState(() {
               _selectedIndex = 1;
               _showSearchDoctor = false;
+            });
+          },
+          onOpenAppointmentHistory: () {
+            setState(() {
+              _selectedIndex = 1;
+              _showSearchDoctor = false;
+            });
+          },
+          onOpenMedicalRecords: () {
+            setState(() {
+              _selectedIndex = 2;
+              _showRekamDetail = false;
+            });
+          },
+          onOpenBills: () {
+            setState(() {
+              _selectedIndex = 3;
+              _showBillDetail = false;
             });
           },
         );
@@ -94,7 +113,10 @@ class _PatientHomePageState extends State<PatientHomePage> {
         );
       case 4:
       default:
-        return const _ProfilePage();
+        return _ProfilePage(
+          user: widget.user,
+          onLogout: widget.onLogout,
+        );
     }
   }
 
@@ -162,10 +184,18 @@ class _PatientDashboardPage extends StatelessWidget {
   const _PatientDashboardPage({
     required this.onOpenNotifications,
     required this.onOpenAppointments,
+    required this.onOpenAppointmentHistory,
+    required this.onOpenMedicalRecords,
+    required this.onOpenBills,
+    required this.user,
   });
 
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenAppointments;
+  final VoidCallback onOpenAppointmentHistory;
+  final VoidCallback onOpenMedicalRecords;
+  final VoidCallback onOpenBills;
+  final Map<String, dynamic> user;
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +234,9 @@ class _PatientDashboardPage extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const _GreetingBlock(),
+                            _GreetingBlock(
+                              userName: user['name']?.toString() ?? 'Pengguna',
+                            ),
                             _NotificationButton(
                               onTap: onOpenNotifications,
                               badgeCount: 1,
@@ -240,7 +272,12 @@ class _PatientDashboardPage extends StatelessWidget {
                     const SizedBox(height: 8),
                     const _SectionHeader(title: 'Menu Cepat'),
                     const SizedBox(height: 16),
-                    _QuickMenuGrid(onOpenAppointments: onOpenAppointments),
+                    _QuickMenuGrid(
+                      onOpenAppointments: onOpenAppointments,
+                      onOpenAppointmentHistory: onOpenAppointmentHistory,
+                      onOpenMedicalRecords: onOpenMedicalRecords,
+                      onOpenBills: onOpenBills,
+                    ),
                     const SizedBox(height: 24),
                     const _ClinicInfoCard(),
                   ],
@@ -1077,7 +1114,13 @@ class _NotificationsPage extends StatelessWidget {
 }
 
 class _ProfilePage extends StatelessWidget {
-  const _ProfilePage();
+  const _ProfilePage({
+    required this.user,
+    required this.onLogout,
+  });
+
+  final Map<String, dynamic> user;
+  final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -1086,12 +1129,14 @@ class _ProfilePage extends StatelessWidget {
         bottom: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
-          children: const [
-            _ProfileHeroCard(),
-            SizedBox(height: 20),
-            _ProfileInfoCard(),
-            SizedBox(height: 20),
-            _ProfileSettingsCard(),
+          children: [
+            _ProfileHeroCard(user: user),
+            const SizedBox(height: 20),
+            _ProfileInfoCard(user: user),
+            const SizedBox(height: 20),
+            _ProfileSettingsCard(
+              onLogout: onLogout,
+            ),
           ],
         ),
       ),
@@ -2074,10 +2119,14 @@ class _BillBreakdownCard extends StatelessWidget {
 }
 
 class _ProfileHeroCard extends StatelessWidget {
-  const _ProfileHeroCard();
+  const _ProfileHeroCard({required this.user});
+
+  final Map<String, dynamic> user;
 
   @override
   Widget build(BuildContext context) {
+    final userName = user['name']?.toString() ?? 'Pengguna';
+
     return Container(
       decoration: _cardDecoration,
       padding: const EdgeInsets.fromLTRB(25, 33, 25, 24),
@@ -2106,27 +2155,27 @@ class _ProfileHeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Andi Pratama',
-            style: TextStyle(
+          Text(
+            userName,
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
               color: Color(0xFF101828),
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'NIK: 3210****1234',
-            style: TextStyle(
+          Text(
+            'ID Pasien: ${user['id']?.toString() ?? '-'}',
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Color(0xFF4A5565),
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            '29 tahun • Laki-laki',
-            style: TextStyle(
+          Text(
+            'Jenis Kelamin: ${user['gender']?.toString() ?? '-'}',
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Color(0xFF6A7282),
@@ -2152,17 +2201,24 @@ class _ProfileHeroCard extends StatelessWidget {
 }
 
 class _ProfileInfoCard extends StatelessWidget {
-  const _ProfileInfoCard();
+  const _ProfileInfoCard({required this.user});
+
+  final Map<String, dynamic> user;
 
   @override
   Widget build(BuildContext context) {
+    final userName = user['name']?.toString() ?? '-';
+    final userEmail = user['email']?.toString() ?? '-';
+    final userPhone = user['phone']?.toString() ?? '-';
+    final userAddress = user['address']?.toString() ?? '-';
+
     return Container(
       decoration: _cardDecoration,
       padding: const EdgeInsets.all(24),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Informasi Pribadi',
             style: TextStyle(
               fontSize: 18,
@@ -2170,33 +2226,33 @@ class _ProfileInfoCard extends StatelessWidget {
               color: Color(0xFF1A1A1A),
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           _InfoRow(
-            iconBg: Color(0xFFEFF6FF),
+            iconBg: const Color(0xFFEFF6FF),
             icon: Icons.badge_rounded,
             label: 'Nama Lengkap',
-            value: 'Andi Pratama',
+            value: userName,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           _InfoRow(
-            iconBg: Color(0xFFFAF5FF),
+            iconBg: const Color(0xFFFAF5FF),
             icon: Icons.phone_rounded,
             label: 'Nomor Telepon',
-            value: '+62 812-3456-7890',
+            value: userPhone,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           _InfoRow(
-            iconBg: Color(0xFFECFDF5),
+            iconBg: const Color(0xFFECFDF5),
             icon: Icons.email_rounded,
             label: 'Email',
-            value: 'andi.pratama@email.com',
+            value: userEmail,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           _InfoRow(
-            iconBg: Color(0xFFFEF3C6),
+            iconBg: const Color(0xFFFEF3C6),
             icon: Icons.location_on_rounded,
             label: 'Alamat',
-            value: 'Jakarta Pusat, DKI Jakarta',
+            value: userAddress,
           ),
         ],
       ),
@@ -2261,7 +2317,9 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _ProfileSettingsCard extends StatelessWidget {
-  const _ProfileSettingsCard();
+  const _ProfileSettingsCard({this.onLogout});
+
+  final VoidCallback? onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -2283,20 +2341,28 @@ class _ProfileSettingsCard extends StatelessWidget {
           _SettingRow(
             icon: Icons.notifications_rounded,
             label: 'Notifikasi',
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Fitur Notifikasi sedang dikembangkan')),
+              );
+            },
           ),
           const SizedBox(height: 12),
           _SettingRow(
             icon: Icons.lock_rounded,
             label: 'Keamanan Akun',
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Fitur Keamanan Akun sedang dikembangkan')),
+              );
+            },
           ),
           const SizedBox(height: 12),
           _SettingRow(
             icon: Icons.logout_rounded,
             label: 'Keluar',
             danger: true,
-            onTap: () {},
+            onTap: onLogout ?? () {},
           ),
         ],
       ),
@@ -2353,9 +2419,17 @@ class _SettingRow extends StatelessWidget {
 }
 
 class _QuickMenuGrid extends StatelessWidget {
-  const _QuickMenuGrid({required this.onOpenAppointments});
+  const _QuickMenuGrid({
+    required this.onOpenAppointments,
+    required this.onOpenAppointmentHistory,
+    required this.onOpenMedicalRecords,
+    required this.onOpenBills,
+  });
 
   final VoidCallback onOpenAppointments;
+  final VoidCallback onOpenAppointmentHistory;
+  final VoidCallback onOpenMedicalRecords;
+  final VoidCallback onOpenBills;
 
   @override
   Widget build(BuildContext context) {
@@ -2374,23 +2448,26 @@ class _QuickMenuGrid extends StatelessWidget {
           shadowColor: const Color(0x80A4F4CF),
           onTap: onOpenAppointments,
         ),
-        const _QuickMenuCard(
+        _QuickMenuCard(
           title: 'Riwayat Kunjungan',
           icon: Icons.history_rounded,
-          iconGradient: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
-          shadowColor: Color(0x80BEDBFF),
+          iconGradient: const [Color(0xFF2B7FFF), Color(0xFF155DFC)],
+          shadowColor: const Color(0x80BEDBFF),
+          onTap: onOpenAppointmentHistory,
         ),
-        const _QuickMenuCard(
+        _QuickMenuCard(
           title: 'Rekam Medis',
           icon: Icons.folder_open_rounded,
-          iconGradient: [Color(0xFFAD46FF), Color(0xFF9810FA)],
-          shadowColor: Color(0x80E9D4FF),
+          iconGradient: const [Color(0xFFAD46FF), Color(0xFF9810FA)],
+          shadowColor: const Color(0x80E9D4FF),
+          onTap: onOpenMedicalRecords,
         ),
-        const _QuickMenuCard(
+        _QuickMenuCard(
           title: 'Tagihan Saya',
           icon: Icons.receipt_long_rounded,
-          iconGradient: [Color(0xFFFE9A00), Color(0xFFE17100)],
-          shadowColor: Color(0x80FEE685),
+          iconGradient: const [Color(0xFFFE9A00), Color(0xFFE17100)],
+          shadowColor: const Color(0x80FEE685),
+          onTap: onOpenBills,
         ),
       ],
     );
@@ -2811,14 +2888,16 @@ class _ClinicInfoRow extends StatelessWidget {
 }
 
 class _GreetingBlock extends StatelessWidget {
-  const _GreetingBlock();
+  const _GreetingBlock({required this.userName});
+
+  final String userName;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Selamat pagi 👋',
           style: TextStyle(
             fontSize: 30,
@@ -2828,10 +2907,10 @@ class _GreetingBlock extends StatelessWidget {
             letterSpacing: 0.2,
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
-          'Andi Pratama',
-          style: TextStyle(
+          userName,
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Color(0xFFD0FAE5),

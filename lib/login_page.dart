@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'auth_api.dart';
+import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.onLoginSuccess});
@@ -136,6 +137,30 @@ class _LoginPageState extends State<LoginPage> {
         'success': false,
         'message': 'Error: $e',
       };
+    }
+  }
+
+  Future<void> _openRegisterPage() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const RegisterPage(),
+      ),
+    );
+
+    if (!mounted || result is! Map<String, dynamic>) {
+      return;
+    }
+
+    final email = result['email']?.toString() ?? '';
+    final password = result['password']?.toString() ?? '';
+    if (email.isNotEmpty && password.isNotEmpty) {
+      setState(() {
+        _selectedRole = 'pasien';
+        _emailController.text = email;
+        _passwordController.text = password;
+        _errorMessage = null;
+      });
     }
   }
 
@@ -443,6 +468,23 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Belum punya akun? ',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF667085),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _isLoading ? null : _openRegisterPage,
+                        child: const Text('Daftar'),
+                      ),
+                    ],
                   ),
                 ],
               ),

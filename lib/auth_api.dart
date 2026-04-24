@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 const String apiBaseUrl = 'http://localhost:3000';
 
@@ -7,11 +8,16 @@ const String apiBaseUrl = 'http://localhost:3000';
 const String apiBaseUrlAndroid = 'http://10.0.2.2:3000';
 
 String getApiBaseUrl() {
-  // This can be overridden with dart-define: flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:3000
-  return const String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: apiBaseUrl,
-  );
+  const override = String.fromEnvironment('API_BASE_URL');
+  if (override.isNotEmpty) {
+    return override;
+  }
+
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    return apiBaseUrlAndroid;
+  }
+
+  return apiBaseUrl;
 }
 
 class LoginResponse {
@@ -39,6 +45,59 @@ class LoginResponse {
 
 class AuthApi {
   static const Duration _timeout = Duration(seconds: 30);
+
+  /// Register as Pasien (Patient)
+  static Future<LoginResponse> registerPasien({
+    required String name,
+    required String email,
+    required String password,
+    required String phone,
+    required String address,
+    required String birthDate,
+    required String gender,
+    String? nik,
+    String? bloodType,
+  }) async {
+    try {
+      final baseUrl = getApiBaseUrl();
+      final url = Uri.parse('$baseUrl/api/auth/register-pasien');
+
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'name': name.trim(),
+              'email': email.trim(),
+              'password': password,
+              'phone': phone.trim(),
+              'address': address.trim(),
+              'birthDate': birthDate,
+              'gender': gender,
+              'nik': nik?.trim(),
+              'bloodType': bloodType?.trim(),
+            }),
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 201 || response.statusCode == 400 || response.statusCode == 409) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return LoginResponse.fromJson(json);
+      }
+
+      return LoginResponse(
+        success: false,
+        message: 'Server error: ${response.statusCode}',
+      );
+    } catch (e) {
+      return LoginResponse(
+        success: false,
+        message: 'Koneksi error: $e',
+      );
+    }
+  }
 
   /// Login as Pasien (Patient)
   static Future<LoginResponse> loginPasien({
