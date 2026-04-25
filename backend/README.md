@@ -29,6 +29,7 @@ npm run dev
 - `GET /api/appointments?pasienId=1` - ambil list appointment milik pasien.
 - `POST /api/appointments` - buat appointment baru.
 - `POST /api/auth/register-pasien` - registrasi akun pasien baru (insert ke tabel `PASIEN` di Oracle).
+- `PUT /api/auth/pasien/profile` - update profil pasien (nama/email/telepon/alamat/jenis kelamin/foto base64) via JWT pasien.
 
 Contoh body `POST /api/auth/register-pasien`:
 
@@ -56,6 +57,19 @@ Contoh body `POST /api/appointments`:
 	"jamAppointment": "09:30",
 	"keluhanAwal": "Demam dan batuk",
 	"catatan": "Datang 15 menit lebih awal"
+}
+```
+
+Contoh body `PUT /api/auth/pasien/profile`:
+
+```json
+{
+	"name": "Andi Firmansyah",
+	"email": "andi@email.com",
+	"phone": "081234567890",
+	"address": "Jl. Melati No. 12",
+	"gender": "L",
+	"photoBase64": "iVBORw0KGgoAAAANSUhEUgAA..."
 }
 ```
 

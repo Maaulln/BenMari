@@ -195,7 +195,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                   Text(
                     'Selamat datang,',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
+                      color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 14,
                     ),
                   ),
@@ -211,7 +211,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                   Text(
                     _todayString(),
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.75),
+                      color: Colors.white.withValues(alpha: 0.75),
                       fontSize: 13,
                     ),
                   ),
@@ -443,7 +443,7 @@ class _DokterTabState extends State<_DokterTab> {
                         subtitle: Text(d['specialization'] ?? '-'),
                         trailing: Switch(
                           value: isActive,
-                          activeColor: _primaryRed,
+                          activeThumbColor: _primaryRed,
                           onChanged: (_) => _toggleStatus(d),
                         ),
                       ),
@@ -772,7 +772,7 @@ class _AppointmentTabState extends State<_AppointmentTab> {
                                   decoration: BoxDecoration(
                                     color: _statusColor(
                                       status,
-                                    ).withOpacity(0.15),
+                                    ).withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -857,9 +857,9 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       padding: const EdgeInsets.all(14),
       child: Column(

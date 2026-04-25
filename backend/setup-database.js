@@ -59,6 +59,18 @@ async function setupDatabase() {
       }
     }
 
+    // Add FOTO_PROFIL_BASE64 column if not exists
+    try {
+      await conn.execute(
+        `ALTER TABLE PASIEN ADD FOTO_PROFIL_BASE64 CLOB`
+      );
+      console.log('✓ Added FOTO_PROFIL_BASE64 column to PASIEN table');
+    } catch (err) {
+      if (err.errorNum !== 1430) {
+        console.log('• FOTO_PROFIL_BASE64 column already exists or error:', err.message);
+      }
+    }
+
     // Add EMAIL_DOKTER column if not exists
     try {
       await conn.execute(
@@ -123,16 +135,33 @@ async function setupDatabase() {
     );
 
     if (result.rows[0][0] === 0) {
-      // Find first PASIEN and update their email/password
+      // Find first PASIEN and update with deterministic demo identity
       await conn.execute(
-        `UPDATE PASIEN SET EMAIL_PASIEN = :email, PASSWORD_PASIEN = :password WHERE ROWNUM <= 1`,
+        `UPDATE PASIEN
+         SET NAMA_LENGKAP = :name,
+             EMAIL_PASIEN = :email,
+             PASSWORD_PASIEN = :password
+         WHERE ROWNUM <= 1`,
         {
+          name: 'Andi Firmansyah',
           email: 'andi@email.com',
           password: 'password123'
         }
       );
       console.log('✓ Created demo PASIEN: andi@email.com / password123');
     } else {
+      // Ensure demo email always maps to expected display name/password
+      await conn.execute(
+        `UPDATE PASIEN
+         SET NAMA_LENGKAP = :name,
+             PASSWORD_PASIEN = :password
+         WHERE LOWER(EMAIL_PASIEN) = :email`,
+        {
+          name: 'Andi Firmansyah',
+          password: 'password123',
+          email: 'andi@email.com'
+        }
+      );
       console.log('✓ Demo PASIEN already exists: andi@email.com');
     }
 
@@ -143,16 +172,33 @@ async function setupDatabase() {
     );
 
     if (result.rows[0][0] === 0) {
-      // Find first DOKTER and update their email/password
+      // Find first DOKTER and update with deterministic demo identity
       await conn.execute(
-        `UPDATE DOKTER SET EMAIL_DOKTER = :email, PASSWORD_DOKTER = :password WHERE ROWNUM <= 1`,
+        `UPDATE DOKTER
+         SET NAMA_DOKTER = :name,
+             EMAIL_DOKTER = :email,
+             PASSWORD_DOKTER = :password
+         WHERE ROWNUM <= 1`,
         {
+          name: 'dr. Budi Santoso',
           email: 'dr.budi@klinik.com',
           password: 'password123'
         }
       );
       console.log('✓ Created demo DOKTER: dr.budi@klinik.com / password123');
     } else {
+      // Ensure demo email always maps to expected display name/password
+      await conn.execute(
+        `UPDATE DOKTER
+         SET NAMA_DOKTER = :name,
+             PASSWORD_DOKTER = :password
+         WHERE LOWER(EMAIL_DOKTER) = :email`,
+        {
+          name: 'dr. Budi Santoso',
+          password: 'password123',
+          email: 'dr.budi@klinik.com'
+        }
+      );
       console.log('✓ Demo DOKTER already exists: dr.budi@klinik.com');
     }
 

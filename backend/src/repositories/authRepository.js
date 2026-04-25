@@ -1,5 +1,6 @@
 import { getConnection } from '../config/db.js';
-import bcrypt from 'bcryptjs';
+
+const PASIEN_PHOTO_COLUMN = 'FOTO_PROFIL_BASE64';
 
 function normalizeRows(result = {}) {
   const rows = Array.isArray(result.rows) ? result.rows : [];
@@ -26,6 +27,88 @@ function normalizeRows(result = {}) {
   });
 }
 
+function normalizeGenderForDb(value) {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw === 'L' || raw === 'LAKI-LAKI') {
+    return 'L';
+  }
+  if (raw === 'P' || raw === 'PEREMPUAN') {
+    return 'P';
+  }
+  return null;
+}
+
+function toGenderLabel(value) {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw === 'L') {
+    return 'Laki-laki';
+  }
+  if (raw === 'P') {
+    return 'Perempuan';
+  }
+  return '-';
+}
+
+function sanitizePhotoValue(photoBase64) {
+  if (photoBase64 === undefined || photoBase64 === null) {
+    return undefined;
+  }
+
+  const raw = String(photoBase64).trim();
+  if (!raw) {
+    return '';
+  }
+
+  const withoutPrefix = raw.includes(',') ? raw.split(',').pop() : raw;
+  const compact = String(withoutPrefix || '').replace(/\s+/g, '');
+  if (!compact) {
+    return '';
+  }
+
+  if (!/^[A-Za-z0-9+/=]+$/.test(compact)) {
+    throw new Error('Format fotoBase64 tidak valid');
+  }
+
+  if (compact.length > 2_000_000) {
+    throw new Error('Ukuran foto terlalu besar (maksimum sekitar 1.5MB)');
+  }
+
+  return compact;
+}
+
+async function hasColumn(conn, tableName, columnName) {
+  const result = await conn.execute(
+    `SELECT COUNT(1) AS TOTAL
+     FROM USER_TAB_COLS
+     WHERE TABLE_NAME = :tableName
+       AND COLUMN_NAME = :columnName`,
+    {
+      tableName: String(tableName || '').toUpperCase(),
+      columnName: String(columnName || '').toUpperCase(),
+    }
+  );
+
+  const rows = normalizeRows(result);
+  return Number(rows?.[0]?.TOTAL || 0) > 0;
+}
+
+async function ensurePasienPhotoColumn(conn) {
+  const exists = await hasColumn(conn, 'PASIEN', PASIEN_PHOTO_COLUMN);
+  if (exists) {
+    return;
+  }
+
+  try {
+    await conn.execute(
+      `ALTER TABLE PASIEN ADD ${PASIEN_PHOTO_COLUMN} CLOB`
+    );
+  } catch (error) {
+    if (error?.errorNum !== 1430) {
+      throw error;
+    }
+  }
+}
+
 /**
  * Authenticate a patient (PASIEN)
  * @param {string} email - Patient email
@@ -39,11 +122,14 @@ export async function authenticatePasien(email, password) {
 
   try {
     const conn = await getConnection();
+    const hasPhotoColumn = await hasColumn(conn, 'PASIEN', PASIEN_PHOTO_COLUMN);
+    const photoColumnSql = hasPhotoColumn ? `, ${PASIEN_PHOTO_COLUMN}` : '';
     
     // Query pasien by email
     const result = await conn.execute(
       `SELECT PASIEN_ID, NAMA_LENGKAP, EMAIL_PASIEN, PASSWORD_PASIEN, 
-              NO_TELEPON, ALAMAT, TANGGAL_LAHIR
+              NO_TELEPON, ALAMAT, TANGGAL_LAHIR, JENIS_KELAMIN
+              ${photoColumnSql}
        FROM PASIEN 
        WHERE EMAIL_PASIEN = :email`,
       { email: email.toLowerCase() }
@@ -71,6 +157,8 @@ export async function authenticatePasien(email, password) {
       phone: pasien.NO_TELEPON,
       address: pasien.ALAMAT,
       birthDate: pasien.TANGGAL_LAHIR,
+      gender: toGenderLabel(pasien.JENIS_KELAMIN),
+      photoBase64: hasPhotoColumn ? (pasien[PASIEN_PHOTO_COLUMN] || null) : null,
       role: 'pasien'
     };
 
@@ -220,7 +308,7 @@ export async function registerPasien(payload = {}) {
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
-  const normalizedGender = String(gender).trim().toUpperCase() === 'P' ? 'P' : 'L';
+  const normalizedGender = normalizeGenderForDb(gender) || 'L';
   const normalizedNik = String(nik || `${Date.now()}`)
     .replace(/\D/g, '')
     .padEnd(16, '0')
@@ -286,8 +374,12 @@ export async function registerPasien(payload = {}) {
 
     await conn.commit();
 
+    const hasPhotoColumn = await hasColumn(conn, 'PASIEN', PASIEN_PHOTO_COLUMN);
+    const photoColumnSql = hasPhotoColumn ? `, ${PASIEN_PHOTO_COLUMN}` : '';
+
     const result = await conn.execute(
-      `SELECT PASIEN_ID, NAMA_LENGKAP, EMAIL_PASIEN, NO_TELEPON, ALAMAT, TANGGAL_LAHIR
+      `SELECT PASIEN_ID, NAMA_LENGKAP, EMAIL_PASIEN, NO_TELEPON, ALAMAT, TANGGAL_LAHIR, JENIS_KELAMIN
+              ${photoColumnSql}
        FROM PASIEN
        WHERE LOWER(EMAIL_PASIEN) = :email`,
       { email: normalizedEmail }
@@ -308,6 +400,8 @@ export async function registerPasien(payload = {}) {
         phone: pasien.NO_TELEPON,
         address: pasien.ALAMAT,
         birthDate: pasien.TANGGAL_LAHIR,
+        gender: toGenderLabel(pasien.JENIS_KELAMIN),
+        photoBase64: hasPhotoColumn ? (pasien[PASIEN_PHOTO_COLUMN] || null) : null,
         role: 'pasien',
       },
     };
@@ -317,6 +411,150 @@ export async function registerPasien(payload = {}) {
       return { success: false, error: 'Email sudah terdaftar' };
     }
     return { success: false, error: error.message };
+  } finally {
+    if (conn) {
+      try {
+        await conn.close();
+      } catch (_) {
+        // ignore close error
+      }
+    }
+  }
+}
+
+/**
+ * Update patient profile data and profile photo.
+ * @param {string|number} pasienId - patient id from JWT token
+ * @param {object} payload - profile payload
+ * @returns {Promise<{success: boolean, data?: object, error?: string, statusCode?: number}>}
+ */
+export async function updatePasienProfile(pasienId, payload = {}) {
+  const safePasienId = Number(pasienId);
+  if (!Number.isFinite(safePasienId) || safePasienId <= 0) {
+    return { success: false, error: 'ID pasien tidak valid', statusCode: 400 };
+  }
+
+  let conn;
+  try {
+    conn = await getConnection();
+    await ensurePasienPhotoColumn(conn);
+
+    const name = payload.name !== undefined ? String(payload.name || '').trim() : undefined;
+    const email = payload.email !== undefined ? String(payload.email || '').trim().toLowerCase() : undefined;
+    const phone = payload.phone !== undefined ? String(payload.phone || '').trim() : undefined;
+    const address = payload.address !== undefined ? String(payload.address || '').trim() : undefined;
+    const gender = payload.gender !== undefined ? normalizeGenderForDb(payload.gender) : undefined;
+    const photoBase64 = sanitizePhotoValue(payload.photoBase64);
+
+    if (name !== undefined && !name) {
+      return { success: false, error: 'Nama tidak boleh kosong', statusCode: 400 };
+    }
+
+    if (email !== undefined && !email) {
+      return { success: false, error: 'Email tidak boleh kosong', statusCode: 400 };
+    }
+
+    if (gender !== undefined && gender === null) {
+      return { success: false, error: 'Jenis kelamin harus L/P atau Laki-laki/Perempuan', statusCode: 400 };
+    }
+
+    const updateClauses = [];
+    const binds = { pasienId: safePasienId };
+
+    if (name !== undefined) {
+      updateClauses.push('NAMA_LENGKAP = :name');
+      binds.name = name;
+    }
+
+    if (email !== undefined) {
+      const emailCheck = await conn.execute(
+        `SELECT PASIEN_ID
+         FROM PASIEN
+         WHERE LOWER(EMAIL_PASIEN) = :email
+           AND PASIEN_ID <> :pasienId`,
+        {
+          email,
+          pasienId: safePasienId,
+        }
+      );
+      const emailRows = normalizeRows(emailCheck);
+      if (emailRows.length > 0) {
+        return { success: false, error: 'Email sudah digunakan pasien lain', statusCode: 409 };
+      }
+
+      updateClauses.push('EMAIL_PASIEN = :email');
+      updateClauses.push('EMAIL = :email');
+      binds.email = email;
+    }
+
+    if (phone !== undefined) {
+      updateClauses.push('NO_TELEPON = :phone');
+      binds.phone = phone;
+    }
+
+    if (address !== undefined) {
+      updateClauses.push('ALAMAT = :address');
+      binds.address = address;
+    }
+
+    if (gender !== undefined) {
+      updateClauses.push('JENIS_KELAMIN = :gender');
+      binds.gender = gender;
+    }
+
+    if (photoBase64 !== undefined) {
+      updateClauses.push(`${PASIEN_PHOTO_COLUMN} = :photoBase64`);
+      binds.photoBase64 = photoBase64 || null;
+    }
+
+    if (updateClauses.length === 0) {
+      return { success: false, error: 'Tidak ada data yang diubah', statusCode: 400 };
+    }
+
+    const updateResult = await conn.execute(
+      `UPDATE PASIEN
+       SET ${updateClauses.join(', ')}
+       WHERE PASIEN_ID = :pasienId`,
+      binds
+    );
+
+    if (Number(updateResult?.rowsAffected || 0) === 0) {
+      return { success: false, error: 'Pasien tidak ditemukan', statusCode: 404 };
+    }
+
+    await conn.commit();
+
+    const profileResult = await conn.execute(
+      `SELECT PASIEN_ID, NAMA_LENGKAP, EMAIL_PASIEN, NO_TELEPON, ALAMAT, TANGGAL_LAHIR,
+              JENIS_KELAMIN, ${PASIEN_PHOTO_COLUMN}
+       FROM PASIEN
+       WHERE PASIEN_ID = :pasienId`,
+      { pasienId: safePasienId }
+    );
+
+    const profileRows = normalizeRows(profileResult);
+    if (profileRows.length === 0) {
+      return { success: false, error: 'Pasien tidak ditemukan setelah update', statusCode: 404 };
+    }
+
+    const pasien = profileRows[0];
+    return {
+      success: true,
+      data: {
+        id: String(pasien.PASIEN_ID),
+        name: pasien.NAMA_LENGKAP,
+        email: pasien.EMAIL_PASIEN,
+        phone: pasien.NO_TELEPON,
+        address: pasien.ALAMAT,
+        birthDate: pasien.TANGGAL_LAHIR,
+        gender: toGenderLabel(pasien.JENIS_KELAMIN),
+        photoBase64: pasien[PASIEN_PHOTO_COLUMN] || null,
+        role: 'pasien',
+      },
+    };
+  } catch (error) {
+    console.error('Update profile error (pasien):', error);
+    return { success: false, error: error.message, statusCode: 500 };
   } finally {
     if (conn) {
       try {

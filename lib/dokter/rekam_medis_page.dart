@@ -1,6 +1,35 @@
 import 'package:flutter/material.dart';
 import 'doctor_surface.dart';
 
+String _todayString() {
+  final now = DateTime.now();
+  const days = [
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+    'Minggu',
+  ];
+  const months = [
+    '',
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+  ];
+  return '${days[now.weekday - 1]}, ${now.day} ${months[now.month]} ${now.year}';
+}
+
 class DokterRekamMedisPage extends StatefulWidget {
   const DokterRekamMedisPage({super.key, required this.onBackToDashboard});
 
@@ -456,18 +485,18 @@ class _RekamMedisDetailPage extends StatelessWidget {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.calendar_today_outlined,
                                 size: 14,
                                 color: Color(0xFF98A2B3),
                               ),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               Text(
-                                'Jumat, 10 April 2026',
-                                style: TextStyle(
+                                _todayString(),
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF4A5565),
@@ -475,8 +504,8 @@ class _RekamMedisDetailPage extends StatelessWidget {
                               ),
                             ],
                           ),
-                          SizedBox(height: 8),
-                          Text(
+                          const SizedBox(height: 8),
+                          const Text(
                             'ISPA (Infeksi Saluran Pernapasan Atas)',
                             style: TextStyle(
                               fontSize: 16,
@@ -484,8 +513,8 @@ class _RekamMedisDetailPage extends StatelessWidget {
                               color: Color(0xFF101828),
                             ),
                           ),
-                          SizedBox(height: 10),
-                          Text(
+                          const SizedBox(height: 10),
+                          const Text(
                             'Pemberian obat antipiretik dan antibiotik',
                             style: TextStyle(
                               fontSize: 14,
@@ -493,13 +522,13 @@ class _RekamMedisDetailPage extends StatelessWidget {
                               color: Color(0xFF4A5565),
                             ),
                           ),
-                          SizedBox(height: 14),
+                          const SizedBox(height: 14),
                           Row(
                             children: [
                               _DetailMeta(text: '120/80'),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               _DetailMeta(text: '70 kg'),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               _DetailMeta(text: '2 obat'),
                             ],
                           ),

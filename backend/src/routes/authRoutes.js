@@ -5,6 +5,7 @@ import {
   authenticateDokter,
   authenticateAdmin,
   registerPasien,
+  updatePasienProfile,
 } from '../repositories/authRepository.js';
 
 const router = express.Router();
@@ -216,6 +217,61 @@ router.get('/verify', (req, res) => {
     res.status(401).json({
       success: false,
       message: 'Token tidak valid atau sudah kadaluarsa',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * PUT /api/auth/pasien/profile
+ * Update profil pasien (nama, email, telepon, alamat, gender, foto base64)
+ */
+router.put('/pasien/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token tidak ditemukan',
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token tidak valid atau sudah kadaluarsa',
+        error: error.message,
+      });
+    }
+
+    if (decoded?.role !== 'pasien') {
+      return res.status(403).json({
+        success: false,
+        message: 'Endpoint ini khusus pasien',
+      });
+    }
+
+    const updateResult = await updatePasienProfile(decoded.userId, req.body || {});
+    if (!updateResult.success) {
+      return res.status(updateResult.statusCode || 400).json({
+        success: false,
+        message: updateResult.error,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profil pasien berhasil diperbarui',
+      user: updateResult.data,
+    });
+  } catch (error) {
+    console.error('Update pasien profile route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat memperbarui profil pasien',
       error: error.message,
     });
   }

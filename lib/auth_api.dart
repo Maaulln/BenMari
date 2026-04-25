@@ -46,6 +46,61 @@ class LoginResponse {
 class AuthApi {
   static const Duration _timeout = Duration(seconds: 30);
 
+  /// Update pasien profile
+  static Future<LoginResponse> updatePasienProfile({
+    required String token,
+    String? name,
+    String? email,
+    String? phone,
+    String? address,
+    String? gender,
+    String? photoBase64,
+  }) async {
+    try {
+      final baseUrl = getApiBaseUrl();
+      final url = Uri.parse('$baseUrl/api/auth/pasien/profile');
+
+      final payload = <String, dynamic>{
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'address': address,
+        'gender': gender,
+        'photoBase64': photoBase64,
+      }..removeWhere((_, value) => value == null);
+
+      final response = await http
+          .put(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 400 ||
+          response.statusCode == 401 ||
+          response.statusCode == 403 ||
+          response.statusCode == 409) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        return LoginResponse.fromJson(json);
+      }
+
+      return LoginResponse(
+        success: false,
+        message: 'Server error: ${response.statusCode}',
+      );
+    } catch (e) {
+      return LoginResponse(
+        success: false,
+        message: 'Koneksi error: $e',
+      );
+    }
+  }
+
   /// Register as Pasien (Patient)
   static Future<LoginResponse> registerPasien({
     required String name,

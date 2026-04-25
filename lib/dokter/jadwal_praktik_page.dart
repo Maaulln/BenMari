@@ -1,6 +1,57 @@
 import 'package:flutter/material.dart';
 import 'doctor_surface.dart';
 
+String _todayString() {
+  final now = DateTime.now();
+  const days = [
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+    'Minggu',
+  ];
+  const months = [
+    '',
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+  ];
+  return '${days[now.weekday - 1]}, ${now.day} ${months[now.month]} ${now.year}';
+}
+
+String _currentWeekRangeString() {
+  final now = DateTime.now();
+  final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+  final endOfWeek = startOfWeek.add(const Duration(days: 6));
+  const shortMonths = [
+    '',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des',
+  ];
+  return '${startOfWeek.day} ${shortMonths[startOfWeek.month]} - ${endOfWeek.day} ${shortMonths[endOfWeek.month]} ${endOfWeek.year}';
+}
+
 class DokterJadwalPraktikPage extends StatelessWidget {
   const DokterJadwalPraktikPage({super.key, required this.onBackToDashboard});
 
@@ -48,7 +99,7 @@ class DokterJadwalPraktikPage extends StatelessWidget {
                             ),
                             SizedBox(height: 4),
                             Text(
-                              '06 Apr - 12 Apr 2026',
+                              _currentWeekRangeString(),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -62,7 +113,7 @@ class DokterJadwalPraktikPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   Row(
-                    children: const [
+                    children: [
                       Expanded(
                         child: _WeekNavButton(
                           text: 'Minggu Lalu',
@@ -113,9 +164,9 @@ class DokterJadwalPraktikPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 22),
                     Row(
-                      children: const [
+                      children: [
                         Text(
-                          'Jumat, 10 April 2026',
+                          _todayString(),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,

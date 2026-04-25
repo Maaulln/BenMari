@@ -6,6 +6,35 @@ import 'profil_dokter_page.dart';
 import 'pemeriksaan_page.dart';
 import '../widgets/doctor_shared_widgets.dart';
 
+String _todayString() {
+  final now = DateTime.now();
+  const days = [
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+    'Minggu',
+  ];
+  const months = [
+    '',
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+  ];
+  return '${days[now.weekday - 1]}, ${now.day} ${months[now.month]} ${now.year}';
+}
+
 class DokterHomePage extends StatefulWidget {
   const DokterHomePage({
     super.key,
@@ -207,8 +236,8 @@ class DashboardPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Jumat, 10 April 2026',
+            Text(
+              _todayString(),
               style: TextStyle(
                 fontSize: 16,
                 color: Color(0xFF667085),

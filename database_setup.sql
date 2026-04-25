@@ -37,6 +37,21 @@ BEGIN
 END;
 /
 
+BEGIN
+  BEGIN
+    ALTER TABLE PASIEN ADD FOTO_PROFIL_BASE64 CLOB;
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLCODE = -1430 THEN
+        -- Column already exists
+        NULL;
+      ELSE
+        RAISE;
+      END IF;
+  END;
+END;
+/
+
 -- Create unique index on EMAIL_PASIEN
 BEGIN
   BEGIN

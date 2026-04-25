@@ -17,7 +17,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
@@ -42,6 +42,7 @@ app.get('/api/routes', (req, res) => {
       { method: 'POST', path: '/api/auth/login-dokter' },
       { method: 'POST', path: '/api/auth/login-admin' },
       { method: 'POST', path: '/api/auth/register-pasien' },
+      { method: 'PUT',  path: '/api/auth/pasien/profile' },
       { method: 'GET',  path: '/api/auth/verify' },
       { method: 'GET',  path: '/api/doctors' },
       { method: 'GET',  path: '/api/doctors/meta/tables' },

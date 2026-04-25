@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
 
+import '../auth_api.dart';
 import 'doctor_api.dart';
 import 'patient_surface.dart';
 
@@ -25,8 +29,301 @@ class _PatientHomePageState extends State<PatientHomePage> {
   bool _showSearchDoctor = false;
   bool _showRekamDetail = false;
   bool _showBillDetail = false;
+  late Map<String, dynamic> _editableUser;
+  Uint8List? _profilePhotoBytes;
   final GlobalKey<_AppointmentsPageState> _appointmentsPageKey =
       GlobalKey<_AppointmentsPageState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _editableUser = Map<String, dynamic>.from(widget.user);
+    _profilePhotoBytes = _decodePhotoBase64(
+      _editableUser['photoBase64']?.toString(),
+    );
+  }
+
+  Uint8List? _decodePhotoBase64(String? rawValue) {
+    if (rawValue == null || rawValue.trim().isEmpty) {
+      return null;
+    }
+    try {
+      final normalized = rawValue.contains(',')
+          ? rawValue.split(',').last
+          : rawValue;
+      return base64Decode(normalized);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _genderToRequestValue(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'laki-laki' || normalized == 'l') {
+      return 'L';
+    }
+    if (normalized == 'perempuan' || normalized == 'p') {
+      return 'P';
+    }
+    return '';
+  }
+
+  Future<bool> _saveProfileToServer({
+    required Map<String, dynamic> nextUser,
+    Uint8List? nextPhotoBytes,
+    bool clearPhoto = false,
+  }) async {
+    final genderRequestValue = _genderToRequestValue(
+      nextUser['gender']?.toString() ?? '-',
+    );
+
+    final response = await AuthApi.updatePasienProfile(
+      token: widget.token,
+      name: nextUser['name']?.toString(),
+      email: nextUser['email']?.toString(),
+      phone: nextUser['phone']?.toString(),
+      address: nextUser['address']?.toString(),
+      gender: genderRequestValue.isEmpty ? null : genderRequestValue,
+      photoBase64: clearPhoto
+          ? ''
+          : (nextPhotoBytes != null ? base64Encode(nextPhotoBytes) : null),
+    );
+
+    if (!mounted) {
+      return false;
+    }
+
+    if (!response.success || response.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response.message ?? 'Gagal menyimpan profil.'),
+        ),
+      );
+      return false;
+    }
+
+    final updatedUser = Map<String, dynamic>.from(response.user!);
+    setState(() {
+      _editableUser = updatedUser;
+      _profilePhotoBytes = _decodePhotoBase64(
+        updatedUser['photoBase64']?.toString(),
+      );
+    });
+    return true;
+  }
+
+  Future<void> _showEditProfileDialog() async {
+    final nameController = TextEditingController(
+      text: _editableUser['name']?.toString() ?? '',
+    );
+    final phoneController = TextEditingController(
+      text: _editableUser['phone']?.toString() ?? '',
+    );
+    final emailController = TextEditingController(
+      text: _editableUser['email']?.toString() ?? '',
+    );
+    final addressController = TextEditingController(
+      text: _editableUser['address']?.toString() ?? '',
+    );
+    String selectedGender = _editableUser['gender']?.toString() ?? '-';
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Edit Profil'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Lengkap',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Nomor Telepon',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: const ['Laki-laki', 'Perempuan', '-'].contains(selectedGender)
+                      ? selectedGender
+                      : '-',
+                  decoration: const InputDecoration(
+                    labelText: 'Jenis Kelamin',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Laki-laki', child: Text('Laki-laki')),
+                    DropdownMenuItem(value: 'Perempuan', child: Text('Perempuan')),
+                    DropdownMenuItem(value: '-', child: Text('-')),
+                  ],
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedGender = value ?? '-';
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: addressController,
+                  minLines: 2,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Alamat',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                final email = emailController.text.trim();
+
+                if (name.isEmpty || email.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Nama dan email wajib diisi.'),
+                    ),
+                  );
+                  return;
+                }
+
+                final success = await _saveProfileToServer(
+                  nextUser: {
+                    ..._editableUser,
+                    'name': name,
+                    'phone': phoneController.text.trim(),
+                    'email': email,
+                    'address': addressController.text.trim(),
+                    'gender': selectedGender,
+                  },
+                );
+
+                if (!mounted || !dialogContext.mounted) {
+                  return;
+                }
+
+                if (success) {
+                  Navigator.pop(dialogContext, true);
+                }
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    nameController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    addressController.dispose();
+
+    if (saved == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profil berhasil diperbarui.')),
+      );
+    }
+  }
+
+  Future<void> _pickProfilePhoto(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(source: source, imageQuality: 85);
+      if (file == null) {
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      if (!mounted) {
+        return;
+      }
+      final success = await _saveProfileToServer(
+        nextUser: _editableUser,
+        nextPhotoBytes: bytes,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto profil berhasil diperbarui.')),
+        );
+      }
+    } on PlatformException {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Izin akses kamera/galeri dibutuhkan.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showPhotoOptions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Pilih dari Galeri'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickProfilePhoto(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: const Text('Ambil dari Kamera'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickProfilePhoto(ImageSource.camera);
+              },
+            ),
+            if (_profilePhotoBytes != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded),
+                title: const Text('Hapus Foto'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _saveProfileToServer(
+                    nextUser: _editableUser,
+                    clearPhoto: true,
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _selectTab(int index) {
     setState(() {
@@ -54,7 +351,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
     switch (_selectedIndex) {
       case 0:
         return _PatientDashboardPage(
-          user: widget.user,
+          user: _editableUser,
           onOpenNotifications: () => setState(() => _showNotifications = true),
           onOpenAppointments: () {
             setState(() {
@@ -114,8 +411,11 @@ class _PatientHomePageState extends State<PatientHomePage> {
       case 4:
       default:
         return _ProfilePage(
-          user: widget.user,
-          onLogout: widget.onLogout,
+          user: _editableUser,
+          profilePhotoBytes: _profilePhotoBytes,
+          onEditProfile: _showEditProfileDialog,
+          onChangePhoto: _showPhotoOptions,
+          onLogout: _showLogoutDialog,
         );
     }
   }
@@ -180,7 +480,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
   }
 }
 
-class _PatientDashboardPage extends StatelessWidget {
+class _PatientDashboardPage extends StatefulWidget {
   const _PatientDashboardPage({
     required this.onOpenNotifications,
     required this.onOpenAppointments,
@@ -196,6 +496,55 @@ class _PatientDashboardPage extends StatelessWidget {
   final VoidCallback onOpenMedicalRecords;
   final VoidCallback onOpenBills;
   final Map<String, dynamic> user;
+
+  @override
+  State<_PatientDashboardPage> createState() => _PatientDashboardPageState();
+}
+
+class _PatientDashboardPageState extends State<_PatientDashboardPage> {
+  static const int _defaultPasienId = int.fromEnvironment(
+    'PASIEN_ID',
+    defaultValue: 1,
+  );
+
+  late Future<List<AppointmentItem>> _appointmentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _appointmentsFuture = const DoctorApi().fetchAppointmentsByPatient(
+      _defaultPasienId,
+    );
+  }
+
+  String _todayString() {
+    final now = DateTime.now();
+    const days = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
+    const months = [
+      '',
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    return '${days[now.weekday - 1]}, ${now.day} ${months[now.month]} ${now.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -235,17 +584,17 @@ class _PatientDashboardPage extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             _GreetingBlock(
-                              userName: user['name']?.toString() ?? 'Pengguna',
+                              userName: widget.user['name']?.toString() ?? 'Pengguna',
                             ),
                             _NotificationButton(
-                              onTap: onOpenNotifications,
+                              onTap: widget.onOpenNotifications,
                               badgeCount: 1,
                             ),
                           ],
                         ),
                         const SizedBox(height: 24),
-                        const Text(
-                          'Jumat, 10 April 2026',
+                        Text(
+                          _todayString(),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -267,16 +616,18 @@ class _PatientDashboardPage extends StatelessWidget {
                   children: [
                     Transform.translate(
                       offset: const Offset(0, -24),
-                      child: const _ActiveAppointmentCard(),
+                      child: _ActiveAppointmentCard(
+                        appointmentsFuture: _appointmentsFuture,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     const _SectionHeader(title: 'Menu Cepat'),
                     const SizedBox(height: 16),
                     _QuickMenuGrid(
-                      onOpenAppointments: onOpenAppointments,
-                      onOpenAppointmentHistory: onOpenAppointmentHistory,
-                      onOpenMedicalRecords: onOpenMedicalRecords,
-                      onOpenBills: onOpenBills,
+                      onOpenAppointments: widget.onOpenAppointments,
+                      onOpenAppointmentHistory: widget.onOpenAppointmentHistory,
+                      onOpenMedicalRecords: widget.onOpenMedicalRecords,
+                      onOpenBills: widget.onOpenBills,
                     ),
                     const SizedBox(height: 24),
                     const _ClinicInfoCard(),
@@ -1116,10 +1467,16 @@ class _NotificationsPage extends StatelessWidget {
 class _ProfilePage extends StatelessWidget {
   const _ProfilePage({
     required this.user,
+    required this.profilePhotoBytes,
+    required this.onEditProfile,
+    required this.onChangePhoto,
     required this.onLogout,
   });
 
   final Map<String, dynamic> user;
+  final Uint8List? profilePhotoBytes;
+  final VoidCallback onEditProfile;
+  final VoidCallback onChangePhoto;
   final VoidCallback onLogout;
 
   @override
@@ -1130,7 +1487,12 @@ class _ProfilePage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
           children: [
-            _ProfileHeroCard(user: user),
+            _ProfileHeroCard(
+              user: user,
+              profilePhotoBytes: profilePhotoBytes,
+              onEditProfile: onEditProfile,
+              onChangePhoto: onChangePhoto,
+            ),
             const SizedBox(height: 20),
             _ProfileInfoCard(user: user),
             const SizedBox(height: 20),
@@ -2119,9 +2481,17 @@ class _BillBreakdownCard extends StatelessWidget {
 }
 
 class _ProfileHeroCard extends StatelessWidget {
-  const _ProfileHeroCard({required this.user});
+  const _ProfileHeroCard({
+    required this.user,
+    required this.profilePhotoBytes,
+    required this.onEditProfile,
+    required this.onChangePhoto,
+  });
 
   final Map<String, dynamic> user;
+  final Uint8List? profilePhotoBytes;
+  final VoidCallback onEditProfile;
+  final VoidCallback onChangePhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -2132,26 +2502,59 @@ class _ProfileHeroCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(25, 33, 25, 24),
       child: Column(
         children: [
-          Container(
-            width: 112,
-            height: 112,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF00BC7D), Color(0xFF009966)],
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x80A4F4CF),
-                  blurRadius: 25,
-                  offset: Offset(0, 20),
+          GestureDetector(
+            onTap: onChangePhoto,
+            child: Stack(
+              children: [
+                Container(
+                  width: 112,
+                  height: 112,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF00BC7D), Color(0xFF009966)],
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x80A4F4CF),
+                        blurRadius: 25,
+                        offset: Offset(0, 20),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: profilePhotoBytes == null
+                        ? const Icon(
+                            Icons.person_rounded,
+                            color: Colors.white,
+                            size: 56,
+                          )
+                        : Image.memory(
+                            profilePhotoBytes!,
+                            fit: BoxFit.cover,
+                          ),
+                  ),
+                ),
+                Positioned(
+                  right: 6,
+                  bottom: 6,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      size: 16,
+                      color: Color(0xFF344054),
+                    ),
+                  ),
                 ),
               ],
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: Colors.white,
-              size: 56,
             ),
           ),
           const SizedBox(height: 20),
@@ -2183,7 +2586,7 @@ class _ProfileHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: onEditProfile,
             icon: const Icon(Icons.edit_rounded, size: 16),
             label: const Text('Edit Profil'),
             style: OutlinedButton.styleFrom(
@@ -2549,8 +2952,233 @@ class _QuickMenuCard extends StatelessWidget {
 }
 
 class _ActiveAppointmentCard extends StatelessWidget {
-  const _ActiveAppointmentCard();
+  const _ActiveAppointmentCard({required this.appointmentsFuture});
 
+  final Future<List<AppointmentItem>> appointmentsFuture;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<AppointmentItem>>(
+      future: appointmentsFuture,
+      builder: (context, snapshot) {
+        // Loading state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            decoration: _cardDecoration.copyWith(
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x1A000000),
+                  blurRadius: 25,
+                  offset: Offset(0, 20),
+                ),
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF009966),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Error state
+        if (snapshot.hasError) {
+          return _NoAppointmentCard();
+        }
+
+        // Get appointments
+        final appointments = snapshot.data ?? const [];
+        
+        // Find first pending appointment
+        AppointmentItem? activeAppointment;
+        for (final apt in appointments) {
+          if (apt.status.toUpperCase() == 'MENUNGGU') {
+            activeAppointment = apt;
+            break;
+          }
+        }
+
+        // No appointment found
+        if (activeAppointment == null) {
+          return _NoAppointmentCard();
+        }
+
+        // Format the date
+        String formattedDate = activeAppointment.date;
+        try {
+          final parts = activeAppointment.date.split('-');
+          if (parts.length == 3) {
+            const monthNames = [
+              '',
+              'Jan',
+              'Feb',
+              'Mar',
+              'Apr',
+              'Mei',
+              'Jun',
+              'Jul',
+              'Agu',
+              'Sep',
+              'Okt',
+              'Nov',
+              'Des'
+            ];
+            final monthIndex = int.tryParse(parts[1]) ?? 0;
+            final month = (monthIndex >= 1 && monthIndex <= 12)
+                ? monthNames[monthIndex]
+                : parts[1];
+            formattedDate = '${parts[2]} $month ${parts[0]}';
+          }
+        } catch (_) {}
+
+        return Container(
+          decoration: _cardDecoration.copyWith(
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A000000),
+                blurRadius: 25,
+                offset: Offset(0, 20),
+              ),
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 10,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Appointment Aktif',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6A7282),
+                        height: 1.2,
+                      ),
+                    ),
+                    _StatusChip(label: activeAppointment.statusLabel),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF00BC7D), Color(0xFF009966)],
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        activeAppointment.doctorName.isNotEmpty
+                            ? activeAppointment.doctorName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            activeAppointment.doctorName,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF101828),
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            activeAppointment.specialization,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4A5565),
+                              height: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 16,
+                            runSpacing: 8,
+                            children: [
+                              _MetaChip(
+                                icon: Icons.calendar_month_outlined,
+                                text: formattedDate,
+                              ),
+                              _MetaChip(
+                                icon: Icons.schedule_outlined,
+                                text: activeAppointment.time,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 44,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF009966),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Lihat Detail',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _NoAppointmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -2570,148 +3198,38 @@ class _ActiveAppointmentCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Text(
-                  'Appointment Aktif',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF6A7282),
-                    height: 1.2,
-                  ),
-                ),
-                _StatusChip(label: 'Menunggu'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF00BC7D), Color(0xFF009966)],
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    '1',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      height: 1,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'dr. Budi Santoso, Sp.PD',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF101828),
-                          height: 1.2,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Spesialis Penyakit Dalam',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF4A5565),
-                          height: 1.2,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 8,
-                        children: [
-                          _MetaChip(
-                            icon: Icons.calendar_month_outlined,
-                            text: '09 Apr 2026',
-                          ),
-                          _MetaChip(
-                            icon: Icons.schedule_outlined,
-                            text: '09:00',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 15),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF9FAFB),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFF3F4F6)),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.calendar_today_rounded,
+                size: 48,
+                color: Colors.grey.shade400,
               ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Keluhan:',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6A7282),
-                      height: 1.2,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Demam tinggi sejak 2 hari yang lalu, disertai batuk kering',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E2939),
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              height: 44,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFF009966),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                'Lihat Detail',
+              const SizedBox(height: 12),
+              Text(
+                'Tidak ada appointment',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: Colors.grey.shade600,
                   height: 1.2,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                'Anda belum memiliki appointment yang sedang menunggu',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade500,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
