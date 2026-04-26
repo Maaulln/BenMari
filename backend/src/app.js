@@ -7,6 +7,7 @@ import doctorRoutes from './routes/doctorRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import pemeriksaanRoutes from './routes/pemeriksaanRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 const app = express();
@@ -38,6 +39,8 @@ app.get('/api/routes', (req, res) => {
       { method: 'GET',  path: '/api/health' },
       { method: 'GET',  path: '/api/db/ping' },
       { method: 'GET',  path: '/api/db/patients/recent' },
+      { method: 'GET',  path: '/api/db/columns/:tableName' },
+      { method: 'POST', path: '/api/db/setup/resep-manual' },
       { method: 'POST', path: '/api/auth/login-pasien' },
       { method: 'POST', path: '/api/auth/login-dokter' },
       { method: 'POST', path: '/api/auth/login-admin' },
@@ -52,6 +55,8 @@ app.get('/api/routes', (req, res) => {
       { method: 'PUT',  path: '/api/admin/doctors/:id/status' },
       { method: 'GET',  path: '/api/admin/patients' },
       { method: 'GET',  path: '/api/admin/appointments' },
+      { method: 'POST', path: '/api/pemeriksaan/selesai' },
+      { method: 'GET',  path: '/api/pemeriksaan/riwayat/:pasienId' },
     ]
   });
 });
@@ -62,6 +67,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/pemeriksaan', pemeriksaanRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

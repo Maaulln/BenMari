@@ -327,3 +327,62 @@ export async function registerPasien(payload = {}) {
     }
   }
 }
+
+
+export async function updatePasienProfile(pasienId, payload = {}) {
+  const { name, phone, address } = payload;
+
+  if (!name || !phone) {
+    return { success: false, error: 'Nama dan telepon wajib diisi' };
+  }
+
+  let conn;
+  try {
+    conn = await getConnection();
+
+    await conn.execute(
+      `UPDATE PASIEN SET
+        NAMA_LENGKAP = :name,
+        NO_TELEPON   = :phone,
+        ALAMAT       = :address,
+        UPDATED_AT   = SYSTIMESTAMP
+       WHERE PASIEN_ID = :pasienId`,
+      {
+        name: String(name).trim(),
+        phone: String(phone).trim(),
+        address: address ? String(address).trim() : null,
+        pasienId: Number(pasienId),
+      },
+      { autoCommit: true }
+    );
+
+    const result = await conn.execute(
+      `SELECT PASIEN_ID, NAMA_LENGKAP, EMAIL_PASIEN, NO_TELEPON, ALAMAT
+       FROM PASIEN WHERE PASIEN_ID = :pasienId`,
+      { pasienId: Number(pasienId) }
+    );
+
+    const rows = normalizeRows(result);
+    if (rows.length === 0) {
+      return { success: false, error: 'Pasien tidak ditemukan' };
+    }
+
+    const p = rows[0];
+    return {
+      success: true,
+      data: {
+        id: String(p.PASIEN_ID),
+        name: p.NAMA_LENGKAP,
+        email: p.EMAIL_PASIEN,
+        phone: p.NO_TELEPON,
+        address: p.ALAMAT,
+        role: 'pasien',
+      },
+    };
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return { success: false, error: error.message };
+  } finally {
+    if (conn) await conn.close();
+  }
+}

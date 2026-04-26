@@ -24,7 +24,7 @@ class DoctorItem {
     required this.schedule,
     required this.fee,
     required this.phone,
-    required this.available
+    required this.available,
   });
 
   final String id;
@@ -59,7 +59,13 @@ class DoctorItem {
       schedule: '${raw['JADWAL_PRAKTIK'] ?? '-'}',
       fee: parsedFee != null ? 'Rp ${parsedFee.toString()}' : '-',
       phone: '${json['phone'] ?? '-'}',
-      available: '${json['isActive'] ?? ''}'.toUpperCase() == 'Y'
+      available: () {
+        final v = json['isActive'];
+        if (v == null) return false;
+        if (v == true || v == 1) return true;
+        final s = '$v'.toUpperCase();
+        return s == 'Y' || s == '1' || s == 'TRUE' || s == 'ACTIVE';
+      }(),
     );
   }
 }
@@ -85,7 +91,9 @@ class DoctorApi {
         .toList();
   }
 
-  Future<Map<String, dynamic>> createAppointment(AppointmentPayload payload) async {
+  Future<Map<String, dynamic>> createAppointment(
+    AppointmentPayload payload,
+  ) async {
     final uri = Uri.parse('${apiBaseUrl()}/api/appointments');
     final response = await http.post(
       uri,
@@ -104,7 +112,9 @@ class DoctorApi {
   }
 
   Future<List<AppointmentItem>> fetchAppointmentsByPatient(int pasienId) async {
-    final uri = Uri.parse('${apiBaseUrl()}/api/appointments?pasienId=$pasienId');
+    final uri = Uri.parse(
+      '${apiBaseUrl()}/api/appointments?pasienId=$pasienId',
+    );
     final response = await http.get(uri);
 
     if (response.statusCode != 200) {

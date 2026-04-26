@@ -2,11 +2,7 @@ import { getConnection } from '../config/db.js';
 
 function toPositiveInteger(value) {
   const parsed = Number.parseInt(value, 10);
-
-  if (Number.isNaN(parsed) || parsed <= 0) {
-    return null;
-  }
-
+  if (Number.isNaN(parsed) || parsed <= 0) return null;
   return parsed;
 }
 
@@ -19,39 +15,24 @@ function isValidTime(value) {
 }
 
 function cleanText(value, max = 400) {
-  if (value === undefined || value === null) {
-    return null;
-  }
-
+  if (value === undefined || value === null) return null;
   const text = String(value).trim();
-  if (!text) {
-    return null;
-  }
-
+  if (!text) return null;
   return text.slice(0, max);
 }
 
 function normalizeRows(result = {}) {
   const rows = Array.isArray(result.rows) ? result.rows : [];
-  if (rows.length === 0) {
-    return [];
-  }
-
-  if (!Array.isArray(rows[0])) {
-    return rows;
-  }
-
+  if (rows.length === 0) return [];
+  if (!Array.isArray(rows[0])) return rows;
   const columns = Array.isArray(result.metaData)
     ? result.metaData.map((item) => String(item?.name || '').toUpperCase())
     : [];
-
   return rows.map((row) => {
     const mapped = {};
-
     for (let index = 0; index < columns.length; index += 1) {
       mapped[columns[index]] = row[index];
     }
-
     return mapped;
   });
 }
@@ -71,21 +52,10 @@ export async function createAppointment(payload = {}) {
   const catatan = cleanText(payload.catatan, 800);
   const status = cleanText(payload.status, 30) || 'MENUNGGU';
 
-  if (!pasienId) {
-    throw badRequest('pasienId wajib diisi dengan angka valid.');
-  }
-
-  if (!dokterId) {
-    throw badRequest('dokterId wajib diisi dengan angka valid.');
-  }
-
-  if (!isValidDate(tanggalAppointment)) {
-    throw badRequest('tanggalAppointment wajib format YYYY-MM-DD.');
-  }
-
-  if (!isValidTime(jamAppointment)) {
-    throw badRequest('jamAppointment wajib format HH:mm (contoh 09:30).');
-  }
+  if (!pasienId) throw badRequest('pasienId wajib diisi dengan angka valid.');
+  if (!dokterId) throw badRequest('dokterId wajib diisi dengan angka valid.');
+  if (!isValidDate(tanggalAppointment)) throw badRequest('tanggalAppointment wajib format YYYY-MM-DD.');
+  if (!isValidTime(jamAppointment)) throw badRequest('jamAppointment wajib format HH:mm (contoh 09:30).');
 
   let connection;
 
@@ -104,7 +74,7 @@ export async function createAppointment(payload = {}) {
         `SELECT DOKTER_ID, NAMA_DOKTER
          FROM DOKTER
          WHERE DOKTER_ID = :dokterId
-           AND NVL(STATUS_AKTIF, 'Y') = 'Y'`,
+           AND NVL(STATUS_AKTIF, '1') != '0'`,
         { dokterId }
       )
     ]);
@@ -150,51 +120,27 @@ export async function createAppointment(payload = {}) {
 
     await connection.execute(
       `INSERT INTO APPOINTMENT (
-         PASIEN_ID,
-         DOKTER_ID,
-         TGL_APPOINTMENT,
-         JAM_APPOINTMENT,
-         NOMOR_ANTRIAN,
-         KELUHAN_AWAL,
-         STATUS,
-         CATATAN,
-         CREATED_AT
+         PASIEN_ID, DOKTER_ID, TGL_APPOINTMENT, JAM_APPOINTMENT,
+         NOMOR_ANTRIAN, KELUHAN_AWAL, STATUS, CATATAN, CREATED_AT
        ) VALUES (
-         :pasienId,
-         :dokterId,
+         :pasienId, :dokterId,
          TO_DATE(:tanggalAppointment, 'YYYY-MM-DD'),
-         :jamAppointment,
-         :nomorAntrian,
-         :keluhanAwal,
-         :status,
-         :catatan,
-         SYSTIMESTAMP
+         :jamAppointment, :nomorAntrian, :keluhanAwal,
+         :status, :catatan, SYSTIMESTAMP
        )`,
       {
-        pasienId,
-        dokterId,
-        tanggalAppointment,
-        jamAppointment,
-        nomorAntrian: nextQueue,
-        keluhanAwal,
-        status: status.toUpperCase(),
-        catatan
+        pasienId, dokterId, tanggalAppointment, jamAppointment,
+        nomorAntrian: nextQueue, keluhanAwal,
+        status: status.toUpperCase(), catatan
       },
       { autoCommit: true }
     );
 
     const insertedResult = await connection.execute(
       `SELECT
-         APPOINTMENT_ID,
-         PASIEN_ID,
-         DOKTER_ID,
+         APPOINTMENT_ID, PASIEN_ID, DOKTER_ID,
          TO_CHAR(TGL_APPOINTMENT, 'YYYY-MM-DD') AS TANGGAL_APPOINTMENT,
-         JAM_APPOINTMENT,
-         NOMOR_ANTRIAN,
-         KELUHAN_AWAL,
-         STATUS,
-         CATATAN,
-         CREATED_AT
+         JAM_APPOINTMENT, NOMOR_ANTRIAN, KELUHAN_AWAL, STATUS, CATATAN, CREATED_AT
        FROM APPOINTMENT
        WHERE PASIEN_ID = :pasienId
          AND DOKTER_ID = :dokterId
@@ -207,17 +153,13 @@ export async function createAppointment(payload = {}) {
 
     return normalizeRows(insertedResult)?.[0] || null;
   } finally {
-    if (connection) {
-      await connection.close();
-    }
+    if (connection) await connection.close();
   }
 }
 
 export async function listAppointmentsByPatient(pasienId) {
   const safePasienId = toPositiveInteger(pasienId);
-  if (!safePasienId) {
-    throw badRequest('pasienId wajib diisi dengan angka valid.');
-  }
+  if (!safePasienId) throw badRequest('pasienId wajib diisi dengan angka valid.');
 
   let connection;
 
@@ -226,18 +168,11 @@ export async function listAppointmentsByPatient(pasienId) {
 
     const result = await connection.execute(
       `SELECT
-         a.APPOINTMENT_ID,
-         a.PASIEN_ID,
-         a.DOKTER_ID,
-         d.NAMA_DOKTER,
-         d.SPESIALISASI,
+         a.APPOINTMENT_ID, a.PASIEN_ID, a.DOKTER_ID,
+         d.NAMA_DOKTER, d.SPESIALISASI,
          TO_CHAR(a.TGL_APPOINTMENT, 'YYYY-MM-DD') AS TANGGAL_APPOINTMENT,
-         a.JAM_APPOINTMENT,
-         a.NOMOR_ANTRIAN,
-         a.KELUHAN_AWAL,
-         a.STATUS,
-         a.CATATAN,
-         a.CREATED_AT
+         a.JAM_APPOINTMENT, a.NOMOR_ANTRIAN, a.KELUHAN_AWAL,
+         a.STATUS, a.CATATAN, a.CREATED_AT
        FROM APPOINTMENT a
        JOIN DOKTER d ON d.DOKTER_ID = a.DOKTER_ID
        WHERE a.PASIEN_ID = :pasienId
@@ -247,8 +182,6 @@ export async function listAppointmentsByPatient(pasienId) {
 
     return normalizeRows(result);
   } finally {
-    if (connection) {
-      await connection.close();
-    }
+    if (connection) await connection.close();
   }
 }

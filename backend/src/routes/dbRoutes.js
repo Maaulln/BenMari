@@ -31,17 +31,14 @@ function toSafeLimit(value, fallback = 10) {
   if (Number.isNaN(parsed)) {
     return fallback;
   }
-
   return Math.max(1, Math.min(parsed, 100));
 }
 
 router.get('/ping', async (req, res, next) => {
   let connection;
-
   try {
     connection = await getConnection();
     const result = await connection.execute('SELECT 1 AS result FROM dual');
-
     res.json({
       success: true,
       message: 'Oracle connection is healthy',
@@ -50,15 +47,12 @@ router.get('/ping', async (req, res, next) => {
   } catch (error) {
     next(error);
   } finally {
-    if (connection) {
-      await connection.close();
-    }
+    if (connection) await connection.close();
   }
 });
 
 router.get('/patients/recent', async (req, res, next) => {
   let connection;
-
   try {
     connection = await getConnection();
     const limit = toSafeLimit(req.query.limit, 10);
@@ -67,16 +61,9 @@ router.get('/patients/recent', async (req, res, next) => {
       `SELECT *
        FROM (
          SELECT
-           PASIEN_ID,
-           NAMA_LENGKAP,
-           EMAIL_PASIEN,
-           NO_TELEPON,
-           ALAMAT,
-           TANGGAL_LAHIR,
-           JENIS_KELAMIN,
-           GOLONGAN_DARAH,
-           STATUS_AKTIF,
-           CREATED_AT
+           PASIEN_ID, NAMA_LENGKAP, EMAIL_PASIEN, NO_TELEPON,
+           ALAMAT, TANGGAL_LAHIR, JENIS_KELAMIN, GOLONGAN_DARAH,
+           STATUS_AKTIF, CREATED_AT
          FROM PASIEN
          ORDER BY PASIEN_ID DESC
        )
@@ -106,18 +93,74 @@ router.get('/patients/recent', async (req, res, next) => {
     res.json({
       success: true,
       message: 'Recent patients fetched successfully',
-      data: {
-        items,
-        total,
-        limit,
-      }
+      data: { items, total, limit }
     });
   } catch (error) {
     next(error);
   } finally {
-    if (connection) {
-      await connection.close();
+    if (connection) await connection.close();
+  }
+});
+
+router.get('/columns/:tableName', async (req, res, next) => {
+  let connection;
+  try {
+    connection = await getConnection();
+    const tableName = req.params.tableName.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+    const result = await connection.execute(
+      `SELECT column_name, data_type, data_length, nullable
+       FROM user_tab_columns
+       WHERE table_name = :tableName
+       ORDER BY column_id`,
+      { tableName }
+    );
+    const columns = normalizeRows(result).map(row => ({
+      column: row.COLUMN_NAME,
+      type: row.DATA_TYPE,
+      length: row.DATA_LENGTH,
+      nullable: row.NULLABLE,
+    }));
+    res.json({ success: true, table: tableName, columns });
+  } catch (error) {
+    next(error);
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Migrasi tabel RESEP supaya support nama obat manual (tanpa FK ke OBAT)
+// Aman dijalankan berkali-kali — semua error kolom sudah ada diabaikan
+router.post('/setup/resep-manual', async (req, res, next) => {
+  let connection;
+  try {
+    connection = await getConnection();
+    const results = [];
+
+    const alterations = [
+      { sql: `ALTER TABLE RESEP MODIFY (OBAT_ID NULL)`, label: 'OBAT_ID nullable' },
+      { sql: `ALTER TABLE RESEP MODIFY (DOSIS NULL)`, label: 'DOSIS nullable' },
+      { sql: `ALTER TABLE RESEP MODIFY (ATURAN_PAKAI NULL)`, label: 'ATURAN_PAKAI nullable' },
+      { sql: `ALTER TABLE RESEP MODIFY (JUMLAH NULL)`, label: 'JUMLAH nullable' },
+      { sql: `ALTER TABLE RESEP ADD NAMA_OBAT_MANUAL VARCHAR2(200)`, label: 'kolom NAMA_OBAT_MANUAL' },
+    ];
+
+    for (const alt of alterations) {
+      try {
+        await connection.execute(alt.sql);
+        results.push({ status: 'ok', label: alt.label });
+      } catch (err) {
+        // ORA-01430: kolom sudah ada, ORA-01451: sudah nullable — aman diabaikan
+        results.push({ status: 'skip', label: alt.label, reason: err.message });
+      }
     }
+
+    await connection.commit();
+    res.json({ success: true, results });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    next(error);
+  } finally {
+    if (connection) await connection.close();
   }
 });
 
