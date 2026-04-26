@@ -17,15 +17,19 @@ class PatientScreenBackground extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          const Positioned(
+          Positioned(
             top: -120,
             right: -96,
-            child: _AmbientBlob(size: 256, color: Color(0x1AFFFFFF)),
+            child: IgnorePointer(
+              child: _AmbientBlob(size: 256, color: Color(0x1AFFFFFF)),
+            ),
           ),
-          const Positioned(
+          Positioned(
             top: 124,
             left: -96,
-            child: _AmbientBlob(size: 192, color: Color(0x1AFFFFFF)),
+            child: IgnorePointer(
+              child: _AmbientBlob(size: 192, color: Color(0x1AFFFFFF)),
+            ),
           ),
           child,
         ],

@@ -1,6 +1,20 @@
-# benmari
+# BenMari
 
-A new Flutter project.
+Flutter app for klinik BenMari.
+
+## Project Structure
+
+- `lib/` contains the Flutter UI.
+- `backend/` contains the Node.js + Express API that connects to Oracle.
+
+## Backend
+
+The backend exposes:
+
+- `GET /api/health` to check whether the API is running.
+- `GET /api/db/ping` to verify Oracle connectivity using `SELECT 1 FROM dual`.
+
+See [backend/README.md](backend/README.md) for setup instructions.
 
 ## Getting Started
 
