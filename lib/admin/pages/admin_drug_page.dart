@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AdminDrugPage extends StatelessWidget {
-  const AdminDrugPage({Key? key}) : super(key: key);
+  const AdminDrugPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +83,7 @@ class AdminDrugPage extends StatelessWidget {
 }
 
 class _SearchInput extends StatelessWidget {
-  const _SearchInput({Key? key}) : super(key: key);
+  const _SearchInput();
 
   @override
   Widget build(BuildContext context) {
@@ -125,8 +125,7 @@ class _DrugStatusCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.color,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +164,7 @@ class _DrugStatusCard extends StatelessWidget {
 }
 
 class _DrugList extends StatelessWidget {
-  const _DrugList({Key? key}) : super(key: key);
+  const _DrugList();
 
   @override
   Widget build(BuildContext context) {
@@ -192,8 +191,7 @@ class _DrugItem extends StatelessWidget {
     required this.name,
     required this.stock,
     required this.stockColor,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +205,7 @@ class _DrugItem extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: stockColor.withOpacity(0.1),
+              backgroundColor: stockColor.withValues(alpha: 0.1),
               child: Icon(Icons.medical_services, color: stockColor, size: 28),
             ),
             const SizedBox(width: 12),
@@ -224,9 +222,9 @@ class _DrugItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: stockColor.withOpacity(0.1),
+                color: stockColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: stockColor.withOpacity(0.2)),
+                border: Border.all(color: stockColor.withValues(alpha: 0.2)),
               ),
               child: Text(
                 stock,

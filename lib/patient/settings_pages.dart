@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'doctor_api.dart';
-import 'patient_surface.dart';
 
 // ─────────────────────────────────────────────
 // NOTIFIKASI SETTINGS PAGE
@@ -259,7 +258,7 @@ class _NotifToggleTile extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFF009966),
+            activeThumbColor: const Color(0xFF009966),
           ),
         ],
       ),

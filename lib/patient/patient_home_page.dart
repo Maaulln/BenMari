@@ -443,7 +443,7 @@ class _NotifikasiSettingsPageState extends State<_NotifikasiSettingsPage> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFF009966),
+            activeThumbColor: const Color(0xFF009966),
           ),
         ],
       ),
@@ -984,18 +984,20 @@ class _PatientHomePageState extends State<PatientHomePage> {
           onAppointmentsLoaded: _onAppointmentsLoaded,
         );
       case 2:
-        if (_showRekamDetail)
+        if (_showRekamDetail) {
           return _RekamMedisDetailPage(
             onBack: () => setState(() => _showRekamDetail = false),
           );
+        }
         return _RekamMedisListPage(
           onOpenDetail: () => setState(() => _showRekamDetail = true),
         );
       case 3:
-        if (_showBillDetail)
+        if (_showBillDetail) {
           return _BillDetailDialogPage(
             onBack: () => setState(() => _showBillDetail = false),
           );
+        }
         return _BillsPage(
           onOpenDetail: () => setState(() => _showBillDetail = true),
         );
@@ -1560,8 +1562,9 @@ class _SearchDoctorPageState extends State<_SearchDoctorPage> {
               child: FutureBuilder<List<DoctorItem>>(
                 future: _doctorFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting)
+                  if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
+                  }
                   if (snapshot.hasError) {
                     return Center(
                       child: Padding(
@@ -1598,7 +1601,7 @@ class _SearchDoctorPageState extends State<_SearchDoctorPage> {
                     );
                   }
                   final doctors = snapshot.data ?? const [];
-                  if (doctors.isEmpty)
+                  if (doctors.isEmpty) {
                     return const Center(
                       child: Text(
                         'Belum ada data dokter.',
@@ -1609,10 +1612,12 @@ class _SearchDoctorPageState extends State<_SearchDoctorPage> {
                         ),
                       ),
                     );
+                  }
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
                     itemCount: doctors.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 16),
                     itemBuilder: (context, index) {
                       final doctor = doctors[index];
                       return _DoctorSearchCard(
@@ -3222,16 +3227,14 @@ class _SettingRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.danger = false,
   });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool danger;
 
   @override
   Widget build(BuildContext context) {
-    final color = danger ? const Color(0xFFFB2C36) : const Color(0xFF101828);
+    const color = Color(0xFF101828);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),

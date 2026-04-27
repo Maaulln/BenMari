@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AdminPatientPage extends StatelessWidget {
-  const AdminPatientPage({Key? key}) : super(key: key);
+  const AdminPatientPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +49,7 @@ class AdminPatientPage extends StatelessWidget {
 }
 
 class _SearchInput extends StatelessWidget {
-  const _SearchInput({Key? key}) : super(key: key);
+  const _SearchInput();
 
   @override
   Widget build(BuildContext context) {
@@ -86,8 +86,7 @@ class _SearchInput extends StatelessWidget {
 class _FilterButton extends StatelessWidget {
   final String label;
   final bool active;
-  const _FilterButton({required this.label, this.active = false, Key? key})
-    : super(key: key);
+  const _FilterButton({required this.label, this.active = false});
 
   @override
   Widget build(BuildContext context) {
@@ -123,8 +122,7 @@ class _PatientStatusCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.color,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +162,7 @@ class _PatientStatusCard extends StatelessWidget {
 }
 
 class _PatientList extends StatelessWidget {
-  const _PatientList({Key? key}) : super(key: key);
+  const _PatientList();
 
   @override
   Widget build(BuildContext context) {
@@ -194,8 +192,7 @@ class _PatientItem extends StatelessWidget {
     required this.nik,
     required this.status,
     required this.statusColor,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +206,7 @@ class _PatientItem extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: statusColor.withOpacity(0.1),
+              backgroundColor: statusColor.withValues(alpha: 0.1),
               child: Icon(Icons.person, color: statusColor, size: 28),
             ),
             const SizedBox(width: 12),
@@ -239,9 +236,9 @@ class _PatientItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: statusColor.withOpacity(0.2)),
+                border: Border.all(color: statusColor.withValues(alpha: 0.2)),
               ),
               child: Text(
                 status,

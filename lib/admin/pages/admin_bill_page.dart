@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AdminBillPage extends StatelessWidget {
-  const AdminBillPage({Key? key}) : super(key: key);
+  const AdminBillPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -63,8 +63,7 @@ class _BillCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.color,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +83,7 @@ class _BillCard extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(Icons.attach_money, color: color, size: 24),

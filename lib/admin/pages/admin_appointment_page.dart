@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AdminAppointmentPage extends StatelessWidget {
-  const AdminAppointmentPage({Key? key}) : super(key: key);
+  const AdminAppointmentPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +68,7 @@ class AdminAppointmentPage extends StatelessWidget {
 
 class _LabelInput extends StatelessWidget {
   final String label;
-  const _LabelInput({required this.label, Key? key}) : super(key: key);
+  const _LabelInput({required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -100,8 +100,7 @@ class _LabelInput extends StatelessWidget {
 class _DropdownFilter extends StatelessWidget {
   final String label;
   final String value;
-  const _DropdownFilter({required this.label, required this.value, Key? key})
-    : super(key: key);
+  const _DropdownFilter({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -153,8 +152,7 @@ class _StatusCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.color,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +191,7 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _AppointmentList extends StatelessWidget {
-  const _AppointmentList({Key? key}) : super(key: key);
+  const _AppointmentList();
 
   @override
   Widget build(BuildContext context) {
@@ -232,8 +230,7 @@ class _AppointmentItem extends StatelessWidget {
     required this.time,
     required this.status,
     required this.statusColor,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -324,9 +321,9 @@ class _AppointmentItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: statusColor.withOpacity(0.2)),
+                border: Border.all(color: statusColor.withValues(alpha: 0.2)),
               ),
               child: Text(
                 status,

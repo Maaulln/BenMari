@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AdminHomePage extends StatelessWidget {
-  const AdminHomePage({Key? key}) : super(key: key);
+  const AdminHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -83,8 +83,7 @@ class _DashboardCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.valueColor,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +132,7 @@ class _DashboardCard extends StatelessWidget {
 
 class _ChartCard extends StatelessWidget {
   final String title;
-  const _ChartCard({required this.title, Key? key}) : super(key: key);
+  const _ChartCard({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +164,7 @@ class _ChartCard extends StatelessWidget {
 }
 
 class _ActivityCard extends StatelessWidget {
-  const _ActivityCard({Key? key}) : super(key: key);
+  const _ActivityCard();
 
   @override
   Widget build(BuildContext context) {
@@ -229,8 +228,7 @@ class _ActivityItem extends StatelessWidget {
     required this.time,
     required this.status,
     required this.statusColor,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +273,7 @@ class _ActivityItem extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(

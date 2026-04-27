@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AdminDoctorPage extends StatelessWidget {
-  const AdminDoctorPage({Key? key}) : super(key: key);
+  const AdminDoctorPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -82,8 +82,7 @@ class _DoctorStatusCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.color,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +123,7 @@ class _DoctorStatusCard extends StatelessWidget {
 }
 
 class _DoctorList extends StatelessWidget {
-  const _DoctorList({Key? key}) : super(key: key);
+  const _DoctorList();
 
   @override
   Widget build(BuildContext context) {
@@ -154,8 +153,7 @@ class _DoctorItem extends StatelessWidget {
     required this.specialization,
     required this.status,
     required this.statusColor,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +167,7 @@ class _DoctorItem extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: statusColor.withOpacity(0.1),
+              backgroundColor: statusColor.withValues(alpha: 0.1),
               child: Icon(Icons.person, color: statusColor, size: 28),
             ),
             const SizedBox(width: 12),
@@ -199,9 +197,9 @@ class _DoctorItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: statusColor.withOpacity(0.2)),
+                border: Border.all(color: statusColor.withValues(alpha: 0.2)),
               ),
               child: Text(
                 status,

@@ -538,7 +538,7 @@ class _PrescriptionCardState extends State<_PrescriptionCard> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _obatList.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
               itemBuilder: (ctx, i) {
                 final obat = _obatList[i];
                 return Container(
