@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'patient/patient_home_page.dart';
 import 'dokter/dokter_home_page.dart';
-import 'admin/admin_home_page.dart';
+import 'admin/pages/admin_home_page.dart';
 import 'login_page.dart';
 
 void main() {
@@ -66,9 +66,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     // Not authenticated - show login
     if (_authToken == null) {
-      return LoginPage(
-        onLoginSuccess: _handleLoginSuccess,
-      );
+      return LoginPage(onLoginSuccess: _handleLoginSuccess);
     }
 
     // Authenticated - show appropriate home page based on role
@@ -80,11 +78,7 @@ class _AppShellState extends State<AppShell> {
           onLogout: _handleLogout,
         );
       case 'admin':
-        return AdminHomePage(
-          token: _authToken!,
-          user: _authUser!,
-          onLogout: _handleLogout,
-        );
+        return AdminHomePage();
       case 'pasien':
       default:
         return PatientHomePage(
