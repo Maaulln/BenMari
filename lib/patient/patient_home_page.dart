@@ -1,9 +1,900 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
+import 'doctor_api.dart';
 import 'patient_surface.dart';
 
+// ─────────────────────────────────────────────
+// EDIT PROFILE PAGE
+// ─────────────────────────────────────────────
+
+class EditProfilePage extends StatefulWidget {
+  const EditProfilePage({super.key, required this.user, required this.onSaved});
+
+  final Map<String, dynamic> user;
+  final void Function(Map<String, dynamic> updatedUser) onSaved;
+
+  @override
+  State<EditProfilePage> createState() => _EditProfilePageState();
+}
+
+class _EditProfilePageState extends State<EditProfilePage> {
+  late TextEditingController _nameController;
+  late TextEditingController _phoneController;
+  late TextEditingController _addressController;
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(
+      text: widget.user['name']?.toString() ?? '',
+    );
+    _phoneController = TextEditingController(
+      text: widget.user['phone']?.toString() ?? '',
+    );
+    _addressController = TextEditingController(
+      text: widget.user['address']?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final address = _addressController.text.trim();
+
+    if (name.isEmpty || phone.isEmpty) {
+      setState(() => _error = 'Nama dan telepon wajib diisi');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final pasienId = widget.user['id']?.toString() ?? '1';
+      final uri = Uri.parse('${apiBaseUrl()}/api/auth/update-pasien/$pasienId');
+      final response = await http.put(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'name': name, 'phone': phone, 'address': address}),
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 && decoded['success'] == true) {
+        final updatedUser =
+            decoded['user'] as Map<String, dynamic>? ?? widget.user;
+        widget.onSaved(updatedUser);
+        if (mounted) Navigator.of(context).pop();
+      } else {
+        setState(() => _error = decoded['message'] ?? 'Gagal menyimpan');
+      }
+    } catch (e) {
+      setState(() => _error = 'Koneksi error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FB),
+      appBar: AppBar(
+        title: const Text('Edit Profil'),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF101828),
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          _buildField('Nama Lengkap', _nameController, Icons.badge_rounded),
+          const SizedBox(height: 16),
+          _buildField(
+            'Nomor Telepon',
+            _phoneController,
+            Icons.phone_rounded,
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: 16),
+          _buildField(
+            'Alamat',
+            _addressController,
+            Icons.location_on_rounded,
+            maxLines: 3,
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE4E2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFF04438)),
+              ),
+              child: Text(
+                _error!,
+                style: const TextStyle(
+                  color: Color(0xFFD92D20),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF009966),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Simpan Perubahan',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildField(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF344054),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: const Color(0xFF98A2B3)),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF009966)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// NOTIFIKASI SETTINGS PAGE
+// ─────────────────────────────────────────────
+
+class _NotifikasiSettingsPage extends StatefulWidget {
+  const _NotifikasiSettingsPage();
+
+  @override
+  State<_NotifikasiSettingsPage> createState() =>
+      _NotifikasiSettingsPageState();
+}
+
+class _NotifikasiSettingsPageState extends State<_NotifikasiSettingsPage> {
+  bool _appointment = true;
+  bool _pengingat = true;
+  bool _pembayaran = false;
+  bool _rekamMedis = true;
+  bool _promosi = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FB),
+      appBar: AppBar(
+        title: const Text('Pengaturan Notifikasi'),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF101828),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFA4F4CF)),
+            ),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: Color(0xFF009966),
+                  size: 20,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Aktifkan notifikasi yang ingin kamu terima.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF007A55),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _sectionLabel('Notifikasi Medis'),
+          const SizedBox(height: 12),
+          _notifTile(
+            Icons.calendar_month_rounded,
+            const Color(0xFFECFDF5),
+            const Color(0xFF009966),
+            'Appointment',
+            'Pengingat jadwal dokter yang akan datang',
+            _appointment,
+            (v) => setState(() => _appointment = v),
+          ),
+          const SizedBox(height: 10),
+          _notifTile(
+            Icons.alarm_rounded,
+            const Color(0xFFFEF3C6),
+            const Color(0xFFE17100),
+            'Pengingat Obat',
+            'Notifikasi waktu minum obat',
+            _pengingat,
+            (v) => setState(() => _pengingat = v),
+          ),
+          const SizedBox(height: 10),
+          _notifTile(
+            Icons.folder_open_rounded,
+            const Color(0xFFFAF5FF),
+            const Color(0xFF9810FA),
+            'Rekam Medis',
+            'Notifikasi saat rekam medis tersedia',
+            _rekamMedis,
+            (v) => setState(() => _rekamMedis = v),
+          ),
+          const SizedBox(height: 24),
+          _sectionLabel('Notifikasi Transaksi'),
+          const SizedBox(height: 12),
+          _notifTile(
+            Icons.receipt_long_rounded,
+            const Color(0xFFEFF6FF),
+            const Color(0xFF155DFC),
+            'Pembayaran & Tagihan',
+            'Info status pembayaran dan tagihan baru',
+            _pembayaran,
+            (v) => setState(() => _pembayaran = v),
+          ),
+          const SizedBox(height: 24),
+          _sectionLabel('Lainnya'),
+          const SizedBox(height: 12),
+          _notifTile(
+            Icons.campaign_rounded,
+            const Color(0xFFFFF1F2),
+            const Color(0xFFFB2C36),
+            'Promosi & Info Klinik',
+            'Berita terbaru dan penawaran dari klinik',
+            _promosi,
+            (v) => setState(() => _promosi = v),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Pengaturan notifikasi disimpan!'),
+                    backgroundColor: Color(0xFF009966),
+                  ),
+                );
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF009966),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Text(
+                'Simpan Pengaturan',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String label) => Text(
+    label,
+    style: const TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+      color: Color(0xFF6A7282),
+      letterSpacing: 0.5,
+    ),
+  );
+
+  Widget _notifTile(
+    IconData icon,
+    Color iconBg,
+    Color iconColor,
+    String title,
+    String subtitle,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF101828),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6A7282),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: const Color(0xFF009966),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// KEAMANAN AKUN PAGE
+// ─────────────────────────────────────────────
+
+class _KeamananAkunPage extends StatefulWidget {
+  const _KeamananAkunPage({required this.user});
+  final Map<String, dynamic> user;
+
+  @override
+  State<_KeamananAkunPage> createState() => _KeamananAkunPageState();
+}
+
+class _KeamananAkunPageState extends State<_KeamananAkunPage> {
+  final _oldPassCtrl = TextEditingController();
+  final _newPassCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
+  bool _showOld = false, _showNew = false, _showConfirm = false;
+  bool _isLoading = false;
+  String? _error, _success;
+
+  @override
+  void dispose() {
+    _oldPassCtrl.dispose();
+    _newPassCtrl.dispose();
+    _confirmPassCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final oldPass = _oldPassCtrl.text.trim();
+    final newPass = _newPassCtrl.text.trim();
+    final confirmPass = _confirmPassCtrl.text.trim();
+    setState(() {
+      _error = null;
+      _success = null;
+    });
+
+    if (oldPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+      setState(() => _error = 'Semua field wajib diisi');
+      return;
+    }
+    if (newPass.length < 6) {
+      setState(() => _error = 'Password baru minimal 6 karakter');
+      return;
+    }
+    if (newPass != confirmPass) {
+      setState(() => _error = 'Konfirmasi password tidak cocok');
+      return;
+    }
+    if (oldPass == newPass) {
+      setState(
+        () => _error = 'Password baru tidak boleh sama dengan password lama',
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final pasienId = widget.user['id']?.toString() ?? '1';
+      final uri = Uri.parse('${apiBaseUrl()}/api/auth/update-pasien/$pasienId');
+      final response = await http.put(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'oldPassword': oldPass,
+          'newPassword': newPass,
+          'name': widget.user['name'],
+          'phone': widget.user['phone'],
+          'address': widget.user['address'],
+        }),
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 && decoded['success'] == true) {
+        setState(() {
+          _success = 'Password berhasil diubah!';
+          _oldPassCtrl.clear();
+          _newPassCtrl.clear();
+          _confirmPassCtrl.clear();
+        });
+      } else {
+        setState(
+          () => _error = decoded['message'] ?? 'Gagal mengubah password',
+        );
+      }
+    } catch (e) {
+      setState(() => _error = 'Koneksi error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  int get _strength {
+    final p = _newPassCtrl.text;
+    int s = 0;
+    if (p.length >= 8) s++;
+    if (p.contains(RegExp(r'[A-Z]'))) s++;
+    if (p.contains(RegExp(r'[0-9]'))) s++;
+    if (p.contains(RegExp(r'[!@#\$%^&*]'))) s++;
+    return s;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FB),
+      appBar: AppBar(
+        title: const Text('Keamanan Akun'),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF101828),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Center(
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.lock_rounded,
+                color: Color(0xFF009966),
+                size: 40,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Center(
+            child: Text(
+              'Ubah Password',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF101828),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Center(
+            child: Text(
+              'Pastikan password baru kamu kuat dan mudah diingat',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Color(0xFF6A7282)),
+            ),
+          ),
+          const SizedBox(height: 28),
+          _passField(
+            'Password Lama',
+            _oldPassCtrl,
+            _showOld,
+            () => setState(() => _showOld = !_showOld),
+          ),
+          const SizedBox(height: 16),
+          _passField(
+            'Password Baru',
+            _newPassCtrl,
+            _showNew,
+            () => setState(() => _showNew = !_showNew),
+            showStrength: true,
+          ),
+          const SizedBox(height: 16),
+          _passField(
+            'Konfirmasi Password Baru',
+            _confirmPassCtrl,
+            _showConfirm,
+            () => setState(() => _showConfirm = !_showConfirm),
+          ),
+          const SizedBox(height: 16),
+          if (_error != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE4E2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFF04438)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: Color(0xFFD92D20),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: Color(0xFFD92D20),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (_success != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFA4F4CF)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF009966),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _success!,
+                      style: const TextStyle(
+                        color: Color(0xFF007A55),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF009966),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Ubah Password',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFFEE685)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.tips_and_updates_rounded,
+                      color: Color(0xFFE17100),
+                      size: 18,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Tips Keamanan',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFBB4D00),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ...[
+                  'Gunakan minimal 8 karakter',
+                  'Kombinasikan huruf besar, kecil, dan angka',
+                  'Jangan gunakan informasi pribadi',
+                  'Jangan bagikan password ke siapapun',
+                ].map(
+                  (t) => Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.check_rounded,
+                          size: 14,
+                          color: Color(0xFFE17100),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          t,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF92400E),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _passField(
+    String label,
+    TextEditingController ctrl,
+    bool show,
+    VoidCallback onToggle, {
+    bool showStrength = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF344054),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: ctrl,
+          obscureText: !show,
+          onChanged: showStrength ? (_) => setState(() {}) : null,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(
+              Icons.lock_outline_rounded,
+              color: Color(0xFF98A2B3),
+            ),
+            suffixIcon: IconButton(
+              icon: Icon(
+                show ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                color: const Color(0xFF98A2B3),
+              ),
+              onPressed: onToggle,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF009966)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+          ),
+        ),
+        if (showStrength && ctrl.text.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ...List.generate(
+                4,
+                (i) => Expanded(
+                  child: Container(
+                    margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: i < _strength
+                          ? (_strength <= 1
+                                ? const Color(0xFFFB2C36)
+                                : _strength == 2
+                                ? const Color(0xFFE17100)
+                                : const Color(0xFF009966))
+                          : const Color(0xFFE5E7EB),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _strength <= 1
+                    ? 'Lemah'
+                    : _strength == 2
+                    ? 'Sedang'
+                    : 'Kuat',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _strength <= 1
+                      ? const Color(0xFFFB2C36)
+                      : _strength == 2
+                      ? const Color(0xFFE17100)
+                      : const Color(0xFF009966),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// PATIENT HOME PAGE
+// ─────────────────────────────────────────────
+
 class PatientHomePage extends StatefulWidget {
-  const PatientHomePage({super.key});
+  const PatientHomePage({
+    super.key,
+    required this.token,
+    required this.user,
+    required this.onLogout,
+  });
+
+  final String token;
+  final Map<String, dynamic> user;
+  final VoidCallback onLogout;
 
   @override
   State<PatientHomePage> createState() => _PatientHomePageState();
@@ -15,21 +906,39 @@ class _PatientHomePageState extends State<PatientHomePage> {
   bool _showSearchDoctor = false;
   bool _showRekamDetail = false;
   bool _showBillDetail = false;
+  int _pendingAppointmentCount = 0;
+  late Map<String, dynamic> _currentUser;
+
+  final GlobalKey<_AppointmentsPageState> _appointmentsPageKey =
+      GlobalKey<_AppointmentsPageState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUser = widget.user;
+  }
+
+  void _onUserUpdated(Map<String, dynamic> updatedUser) {
+    setState(() => _currentUser = updatedUser);
+  }
 
   void _selectTab(int index) {
     setState(() {
       _selectedIndex = index;
       _showNotifications = false;
-      if (index != 1) {
-        _showSearchDoctor = false;
-      }
-      if (index != 2) {
-        _showRekamDetail = false;
-      }
-      if (index != 3) {
-        _showBillDetail = false;
-      }
+      if (index != 1) _showSearchDoctor = false;
+      if (index != 2) _showRekamDetail = false;
+      if (index != 3) _showBillDetail = false;
     });
+  }
+
+  void _onAppointmentsLoaded(List<AppointmentItem> appointments) {
+    final pending = appointments
+        .where((a) => a.status.toUpperCase() == 'MENUNGGU')
+        .length;
+    if (pending != _pendingAppointmentCount) {
+      setState(() => _pendingAppointmentCount = pending);
+    }
   }
 
   Widget _currentPage() {
@@ -42,22 +951,37 @@ class _PatientHomePageState extends State<PatientHomePage> {
     switch (_selectedIndex) {
       case 0:
         return _PatientDashboardPage(
+          user: _currentUser,
           onOpenNotifications: () => setState(() => _showNotifications = true),
-          onOpenSearchDoctor: () {
-            setState(() {
-              _selectedIndex = 1;
-              _showSearchDoctor = true;
-            });
-          },
+          onOpenAppointments: () => setState(() {
+            _selectedIndex = 1;
+            _showSearchDoctor = false;
+          }),
+          onOpenAppointmentHistory: () => setState(() {
+            _selectedIndex = 1;
+            _showSearchDoctor = false;
+          }),
+          onOpenMedicalRecords: () => setState(() {
+            _selectedIndex = 2;
+            _showRekamDetail = false;
+          }),
+          onOpenBills: () => setState(() {
+            _selectedIndex = 3;
+            _showBillDetail = false;
+          }),
         );
       case 1:
         if (_showSearchDoctor) {
           return _SearchDoctorPage(
             onBack: () => setState(() => _showSearchDoctor = false),
+            onAppointmentCreated: () =>
+                _appointmentsPageKey.currentState?.reloadAppointments(),
           );
         }
         return _AppointmentsPage(
+          key: _appointmentsPageKey,
           onOpenSearchDoctor: () => setState(() => _showSearchDoctor = true),
+          onAppointmentsLoaded: _onAppointmentsLoaded,
         );
       case 2:
         if (_showRekamDetail) {
@@ -79,31 +1003,92 @@ class _PatientHomePageState extends State<PatientHomePage> {
         );
       case 4:
       default:
-        return const _ProfilePage();
+        return _ProfilePage(
+          user: _currentUser,
+          onLogout: widget.onLogout,
+          onUserUpdated: _onUserUpdated,
+        );
     }
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Anda yakin ingin keluar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onLogout();
+            },
+            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ben Mari Klinik'),
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: const Color(0xFFF8F9FB),
+        foregroundColor: const Color(0xFF101828),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Center(
+              child: Tooltip(
+                message: 'Logout',
+                child: IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  onPressed: _showLogoutDialog,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       backgroundColor: const Color(0xFFF8F9FB),
       body: _currentPage(),
       bottomNavigationBar: _PatientBottomNavigationBar(
         selectedIndex: _selectedIndex,
         onSelected: _selectTab,
+        pendingAppointmentCount: _pendingAppointmentCount,
       ),
     );
   }
 }
 
+// ─────────────────────────────────────────────
+// DASHBOARD PAGE
+// ─────────────────────────────────────────────
+
 class _PatientDashboardPage extends StatelessWidget {
   const _PatientDashboardPage({
     required this.onOpenNotifications,
-    required this.onOpenSearchDoctor,
+    required this.onOpenAppointments,
+    required this.onOpenAppointmentHistory,
+    required this.onOpenMedicalRecords,
+    required this.onOpenBills,
+    required this.user,
   });
 
   final VoidCallback onOpenNotifications;
-  final VoidCallback onOpenSearchDoctor;
+  final VoidCallback onOpenAppointments;
+  final VoidCallback onOpenAppointmentHistory;
+  final VoidCallback onOpenMedicalRecords;
+  final VoidCallback onOpenBills;
+  final Map<String, dynamic> user;
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +1127,9 @@ class _PatientDashboardPage extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const _GreetingBlock(),
+                            _GreetingBlock(
+                              userName: user['name']?.toString() ?? 'Pengguna',
+                            ),
                             _NotificationButton(
                               onTap: onOpenNotifications,
                               badgeCount: 1,
@@ -178,7 +1165,12 @@ class _PatientDashboardPage extends StatelessWidget {
                     const SizedBox(height: 8),
                     const _SectionHeader(title: 'Menu Cepat'),
                     const SizedBox(height: 16),
-                    _QuickMenuGrid(onOpenSearchDoctor: onOpenSearchDoctor),
+                    _QuickMenuGrid(
+                      onOpenAppointments: onOpenAppointments,
+                      onOpenAppointmentHistory: onOpenAppointmentHistory,
+                      onOpenMedicalRecords: onOpenMedicalRecords,
+                      onOpenBills: onOpenBills,
+                    ),
                     const SizedBox(height: 24),
                     const _ClinicInfoCard(),
                   ],
@@ -192,10 +1184,74 @@ class _PatientDashboardPage extends StatelessWidget {
   }
 }
 
-class _AppointmentsPage extends StatelessWidget {
-  const _AppointmentsPage({required this.onOpenSearchDoctor});
+// ─────────────────────────────────────────────
+// APPOINTMENTS PAGE
+// ─────────────────────────────────────────────
 
+class _AppointmentsPage extends StatefulWidget {
+  const _AppointmentsPage({
+    super.key,
+    required this.onOpenSearchDoctor,
+    required this.onAppointmentsLoaded,
+  });
   final VoidCallback onOpenSearchDoctor;
+  final void Function(List<AppointmentItem>) onAppointmentsLoaded;
+
+  @override
+  State<_AppointmentsPage> createState() => _AppointmentsPageState();
+}
+
+class _AppointmentsPageState extends State<_AppointmentsPage> {
+  static const int _defaultPasienId = int.fromEnvironment(
+    'PASIEN_ID',
+    defaultValue: 1,
+  );
+  late Future<List<AppointmentItem>> _appointmentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _appointmentsFuture = _fetchAndNotify();
+  }
+
+  Future<List<AppointmentItem>> _fetchAndNotify() async {
+    final result = await const DoctorApi().fetchAppointmentsByPatient(
+      _defaultPasienId,
+    );
+    widget.onAppointmentsLoaded(result);
+    return result;
+  }
+
+  void reloadAppointments() {
+    setState(() {
+      _appointmentsFuture = _fetchAndNotify();
+    });
+  }
+
+  String _formatApiDate(String apiDate) {
+    final parts = apiDate.split('-');
+    if (parts.length != 3) return apiDate;
+    const monthNames = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    final monthIndex = int.tryParse(parts[1]) ?? 0;
+    final month = (monthIndex >= 1 && monthIndex <= 12)
+        ? monthNames[monthIndex]
+        : parts[1];
+    return '${parts[2]} $month ${parts[0]}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -204,48 +1260,120 @@ class _AppointmentsPage extends StatelessWidget {
         bottom: false,
         child: Column(
           children: [
-            const _SimpleTopHeader(
-              title: 'Appointment Saya',
-              subtitle: '2 appointment selesai',
-            ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
-                children: [
-                  _AppointmentCard(
-                    status: 'Selesai',
-                    date: '05 Apr 2026',
-                    time: '09:00',
-                  ),
-                  const SizedBox(height: 16),
-                  _AppointmentCard(
-                    status: 'Selesai',
-                    date: '21 Mar 2026',
-                    time: '10:30',
-                  ),
-                  const SizedBox(height: 16),
-                  _AppointmentCard(
-                    status: 'Selesai',
-                    date: '09 Mar 2026',
-                    time: '08:45',
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: onOpenSearchDoctor,
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Buat Appointment'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF009966),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+              child: FutureBuilder<List<AppointmentItem>>(
+                future: _appointmentsFuture,
+                builder: (context, snapshot) {
+                  final appointments = snapshot.data ?? const [];
+                  final pendingCount = appointments
+                      .where((a) => a.status.toUpperCase() == 'MENUNGGU')
+                      .length;
+                  final selesaiCount = appointments
+                      .where((a) => a.status.toUpperCase() == 'SELESAI')
+                      .length;
+
+                  return Column(
+                    children: [
+                      _SimpleTopHeader(
+                        title: 'Appointment Saya',
+                        subtitle:
+                            snapshot.connectionState == ConnectionState.waiting
+                            ? 'Memuat...'
+                            : '$selesaiCount appointment selesai${pendingCount > 0 ? ' • $pendingCount menunggu' : ''}',
                       ),
-                    ),
-                  ),
-                ],
+                      Expanded(
+                        child:
+                            snapshot.connectionState == ConnectionState.waiting
+                            ? const Center(child: CircularProgressIndicator())
+                            : snapshot.hasError
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text(
+                                        'Gagal memuat appointment',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF101828),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '${snapshot.error}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Color(0xFF6A7282),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: reloadAppointments,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(
+                                            0xFF009966,
+                                          ),
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        child: const Text('Coba Lagi'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.fromLTRB(
+                                  24,
+                                  16,
+                                  24,
+                                  120,
+                                ),
+                                itemCount: appointments.length + 1,
+                                separatorBuilder: (_, index) => SizedBox(
+                                  height: index == appointments.length - 1
+                                      ? 24
+                                      : 16,
+                                ),
+                                itemBuilder: (context, index) {
+                                  if (index == appointments.length) {
+                                    return SizedBox(
+                                      height: 48,
+                                      child: ElevatedButton.icon(
+                                        onPressed: widget.onOpenSearchDoctor,
+                                        icon: const Icon(Icons.add_rounded),
+                                        label: const Text('Buat Appointment'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(
+                                            0xFF009966,
+                                          ),
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  final item = appointments[index];
+                                  return _AppointmentCard(
+                                    doctorName: item.doctorName,
+                                    specialization: item.specialization,
+                                    status: item.statusLabel,
+                                    date: _formatApiDate(item.date),
+                                    time: item.time,
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -255,10 +1383,162 @@ class _AppointmentsPage extends StatelessWidget {
   }
 }
 
-class _SearchDoctorPage extends StatelessWidget {
-  const _SearchDoctorPage({required this.onBack});
+// ─────────────────────────────────────────────
+// SEARCH DOCTOR PAGE
+// ─────────────────────────────────────────────
 
+class _SearchDoctorPage extends StatefulWidget {
+  const _SearchDoctorPage({
+    required this.onBack,
+    required this.onAppointmentCreated,
+  });
   final VoidCallback onBack;
+  final VoidCallback onAppointmentCreated;
+
+  @override
+  State<_SearchDoctorPage> createState() => _SearchDoctorPageState();
+}
+
+class _SearchDoctorPageState extends State<_SearchDoctorPage> {
+  static const int _defaultPasienId = int.fromEnvironment(
+    'PASIEN_ID',
+    defaultValue: 1,
+  );
+  late Future<List<DoctorItem>> _doctorFuture;
+  String? _submittingDoctorId;
+
+  @override
+  void initState() {
+    super.initState();
+    _doctorFuture = const DoctorApi().fetchDoctors();
+  }
+
+  void _reloadDoctors() {
+    setState(() => _doctorFuture = const DoctorApi().fetchDoctors());
+  }
+
+  String _formatDate(DateTime value) =>
+      '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+  String _formatTime(TimeOfDay value) =>
+      '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _onPickDoctor(DoctorItem doctor) async {
+    final dokterId = int.tryParse(doctor.id);
+    if (dokterId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ID dokter tidak valid.')));
+      return;
+    }
+    final today = DateTime.now();
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: today,
+      firstDate: today,
+      lastDate: DateTime(today.year + 1),
+      helpText: 'Pilih tanggal appointment',
+    );
+    if (!mounted || selectedDate == null) return;
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 9, minute: 0),
+      helpText: 'Pilih jam appointment',
+    );
+    if (!mounted || selectedTime == null) return;
+
+    final keluhanController = TextEditingController();
+    final catatanController = TextEditingController();
+
+    final submit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Konfirmasi Appointment'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Dokter: ${doctor.name}'),
+              const SizedBox(height: 4),
+              Text('Tanggal: ${_formatDate(selectedDate)}'),
+              const SizedBox(height: 4),
+              Text('Jam: ${_formatTime(selectedTime)}'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: keluhanController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Keluhan awal',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: catatanController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Catatan (opsional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF009966),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || submit != true) return;
+
+    setState(() => _submittingDoctorId = doctor.id);
+    try {
+      final response = await const DoctorApi().createAppointment(
+        AppointmentPayload(
+          pasienId: _defaultPasienId,
+          dokterId: dokterId,
+          tanggalAppointment: _formatDate(selectedDate),
+          jamAppointment: _formatTime(selectedTime),
+          keluhanAwal: keluhanController.text.trim(),
+          catatan: catatanController.text.trim(),
+        ),
+      );
+      if (!mounted) return;
+      final queue = response['NOMOR_ANTRIAN'];
+      widget.onAppointmentCreated();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            queue != null
+                ? 'Appointment berhasil dibuat. Nomor antrian: $queue'
+                : 'Appointment berhasil dibuat.',
+          ),
+          backgroundColor: const Color(0xFF009966),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$error'),
+          backgroundColor: const Color(0xFFBB4D00),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submittingDoctorId = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -269,9 +1549,9 @@ class _SearchDoctorPage extends StatelessWidget {
           children: [
             _SimpleTopHeader(
               title: 'Cari Dokter',
-              subtitle: '3 dokter tersedia hari ini',
+              subtitle: 'Data dokter dari backend',
               leading: IconButton(
-                onPressed: onBack,
+                onPressed: widget.onBack,
                 icon: const Icon(
                   Icons.arrow_back_rounded,
                   color: Color(0xFF4A5565),
@@ -279,15 +1559,80 @@ class _SearchDoctorPage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
-                children: const [
-                  _DoctorSearchCard(nameInitial: 'B', available: true),
-                  SizedBox(height: 16),
-                  _DoctorSearchCard(nameInitial: 'S', available: true),
-                  SizedBox(height: 16),
-                  _DoctorSearchCard(nameInitial: 'R', available: false),
-                ],
+              child: FutureBuilder<List<DoctorItem>>(
+                future: _doctorFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Gagal memuat data dokter',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF101828),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Color(0xFF6A7282)),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _reloadDoctors,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF009966),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Coba Lagi'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  final doctors = snapshot.data ?? const [];
+                  if (doctors.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'Belum ada data dokter.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF6A7282),
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+                    itemCount: doctors.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final doctor = doctors[index];
+                      return _DoctorSearchCard(
+                        nameInitial: doctor.initial,
+                        name: doctor.name,
+                        specialization: doctor.specialization,
+                        schedule: doctor.schedule,
+                        fee: doctor.fee,
+                        available: doctor.available,
+                        isSubmitting: _submittingDoctorId == doctor.id,
+                        onSelect: () => _onPickDoctor(doctor),
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ],
@@ -297,9 +1642,12 @@ class _SearchDoctorPage extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// REKAM MEDIS
+// ─────────────────────────────────────────────
+
 class _RekamMedisListPage extends StatelessWidget {
   const _RekamMedisListPage({required this.onOpenDetail});
-
   final VoidCallback onOpenDetail;
 
   @override
@@ -333,7 +1681,6 @@ class _RekamMedisListPage extends StatelessWidget {
 
 class _RekamMedisDetailPage extends StatelessWidget {
   const _RekamMedisDetailPage({required this.onBack});
-
   final VoidCallback onBack;
 
   @override
@@ -381,9 +1728,12 @@ class _RekamMedisDetailPage extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// TAGIHAN
+// ─────────────────────────────────────────────
+
 class _BillsPage extends StatelessWidget {
   const _BillsPage({required this.onOpenDetail});
-
   final VoidCallback onOpenDetail;
 
   @override
@@ -422,7 +1772,6 @@ class _BillsPage extends StatelessWidget {
 
 class _BillDetailDialogPage extends StatelessWidget {
   const _BillDetailDialogPage({required this.onBack});
-
   final VoidCallback onBack;
 
   @override
@@ -589,9 +1938,12 @@ class _BillDetailDialogPage extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// NOTIFIKASI
+// ─────────────────────────────────────────────
+
 class _NotificationsPage extends StatelessWidget {
   const _NotificationsPage({required this.onBack});
-
   final VoidCallback onBack;
 
   @override
@@ -649,8 +2001,19 @@ class _NotificationsPage extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// PROFIL PAGE
+// ─────────────────────────────────────────────
+
 class _ProfilePage extends StatelessWidget {
-  const _ProfilePage();
+  const _ProfilePage({
+    required this.user,
+    required this.onLogout,
+    required this.onUserUpdated,
+  });
+  final Map<String, dynamic> user;
+  final VoidCallback onLogout;
+  final void Function(Map<String, dynamic>) onUserUpdated;
 
   @override
   Widget build(BuildContext context) {
@@ -659,12 +2022,12 @@ class _ProfilePage extends StatelessWidget {
         bottom: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
-          children: const [
-            _ProfileHeroCard(),
-            SizedBox(height: 20),
-            _ProfileInfoCard(),
-            SizedBox(height: 20),
-            _ProfileSettingsCard(),
+          children: [
+            _ProfileHeroCard(user: user, onUserUpdated: onUserUpdated),
+            const SizedBox(height: 20),
+            _ProfileInfoCard(user: user),
+            const SizedBox(height: 20),
+            _ProfileSettingsCard(onLogout: onLogout, user: user),
           ],
         ),
       ),
@@ -672,13 +2035,192 @@ class _ProfilePage extends StatelessWidget {
   }
 }
 
+class _ProfileHeroCard extends StatelessWidget {
+  const _ProfileHeroCard({required this.user, required this.onUserUpdated});
+  final Map<String, dynamic> user;
+  final void Function(Map<String, dynamic>) onUserUpdated;
+
+  @override
+  Widget build(BuildContext context) {
+    final userName = user['name']?.toString() ?? 'Pengguna';
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.fromLTRB(25, 33, 25, 24),
+      child: Column(
+        children: [
+          Container(
+            width: 112,
+            height: 112,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF00BC7D), Color(0xFF009966)],
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x80A4F4CF),
+                  blurRadius: 25,
+                  offset: Offset(0, 20),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: Colors.white,
+              size: 56,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            userName,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF101828),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ID Pasien: ${user['id']?.toString() ?? '-'}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF4A5565),
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    EditProfilePage(user: user, onSaved: onUserUpdated),
+              ),
+            ),
+            icon: const Icon(Icons.edit_rounded, size: 16),
+            label: const Text('Edit Profil'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1A1A1A),
+              side: const BorderSide(color: Color(0xFFE5E7EB)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileInfoCard extends StatelessWidget {
+  const _ProfileInfoCard({required this.user});
+  final Map<String, dynamic> user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Informasi Pribadi',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _InfoRow(
+            iconBg: const Color(0xFFEFF6FF),
+            icon: Icons.badge_rounded,
+            label: 'Nama Lengkap',
+            value: user['name']?.toString() ?? '-',
+          ),
+          const SizedBox(height: 12),
+          _InfoRow(
+            iconBg: const Color(0xFFFAF5FF),
+            icon: Icons.phone_rounded,
+            label: 'Nomor Telepon',
+            value: user['phone']?.toString() ?? '-',
+          ),
+          const SizedBox(height: 12),
+          _InfoRow(
+            iconBg: const Color(0xFFECFDF5),
+            icon: Icons.email_rounded,
+            label: 'Email',
+            value: user['email']?.toString() ?? '-',
+          ),
+          const SizedBox(height: 12),
+          _InfoRow(
+            iconBg: const Color(0xFFFEF3C6),
+            icon: Icons.location_on_rounded,
+            label: 'Alamat',
+            value: user['address']?.toString() ?? '-',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSettingsCard extends StatelessWidget {
+  const _ProfileSettingsCard({this.onLogout, required this.user});
+  final VoidCallback? onLogout;
+  final Map<String, dynamic> user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Pengaturan',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SettingRow(
+            icon: Icons.notifications_rounded,
+            label: 'Notifikasi',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const _NotifikasiSettingsPage(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingRow(
+            icon: Icons.lock_rounded,
+            label: 'Keamanan Akun',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => _KeamananAkunPage(user: user)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// SHARED WIDGETS
+// ─────────────────────────────────────────────
+
 class _SimpleTopHeader extends StatelessWidget {
   const _SimpleTopHeader({
     required this.title,
     required this.subtitle,
     this.leading,
   });
-
   final String title;
   final String subtitle;
   final Widget? leading;
@@ -737,14 +2279,13 @@ class _SimpleTopHeader extends StatelessWidget {
 
 class _AppointmentCard extends StatelessWidget {
   const _AppointmentCard({
+    required this.doctorName,
+    required this.specialization,
     required this.status,
     required this.date,
     required this.time,
   });
-
-  final String status;
-  final String date;
-  final String time;
+  final String doctorName, specialization, status, date, time;
 
   @override
   Widget build(BuildContext context) {
@@ -757,21 +2298,26 @@ class _AppointmentCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'dr. Budi Santoso, Sp.PD',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF101828),
+              Expanded(
+                child: Text(
+                  doctorName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF101828),
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               _StatusChip(label: status),
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Spesialis Penyakit Dalam',
-            style: TextStyle(
+          Text(
+            'Spesialis $specialization',
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Color(0xFF4A5565),
@@ -820,10 +2366,19 @@ class _AppointmentCard extends StatelessWidget {
 }
 
 class _DoctorSearchCard extends StatelessWidget {
-  const _DoctorSearchCard({required this.nameInitial, required this.available});
-
-  final String nameInitial;
-  final bool available;
+  const _DoctorSearchCard({
+    required this.nameInitial,
+    required this.name,
+    required this.specialization,
+    required this.schedule,
+    required this.fee,
+    required this.available,
+    required this.isSubmitting,
+    required this.onSelect,
+  });
+  final String nameInitial, name, specialization, schedule, fee;
+  final bool available, isSubmitting;
+  final VoidCallback onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -869,21 +2424,26 @@ class _DoctorSearchCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'dr. Budi Santoso, Sp.PD',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF101828),
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF101828),
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     _StatusChip(label: available ? 'Tersedia' : 'Penuh'),
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Spesialis Penyakit Dalam',
-                  style: TextStyle(
+                Text(
+                  specialization,
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF4A5565),
@@ -900,10 +2460,10 @@ class _DoctorSearchCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0xFFDBEAFE)),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Jadwal Praktik:',
                         style: TextStyle(
                           fontSize: 12,
@@ -911,10 +2471,10 @@ class _DoctorSearchCard extends StatelessWidget {
                           color: Color(0xFF155DFC),
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Senin, Rabu, Jumat',
-                        style: TextStyle(
+                        schedule,
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF1C398E),
@@ -924,29 +2484,47 @@ class _DoctorSearchCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Rp 150.000',
-                  style: TextStyle(
+                Text(
+                  fee,
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF009966),
                   ),
                 ),
                 const SizedBox(height: 10),
-                SizedBox(
-                  height: 40,
-                  child: ElevatedButton(
-                    onPressed: null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF009966),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: const Color(0xFF009966),
-                      disabledForegroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                GestureDetector(
+                  onTap: available && !isSubmitting ? onSelect : null,
+                  child: Container(
+                    width: double.infinity,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: available
+                          ? const Color(0xFF009966)
+                          : const Color(0xFFCCCCCC),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Text('Pilih Dokter'),
+                    alignment: Alignment.center,
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            available ? 'Pilih Dokter' : 'Dokter Penuh',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: available
+                                  ? Colors.white
+                                  : const Color(0xFF999999),
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -1005,7 +2583,7 @@ class _MedicalRecordCard extends StatelessWidget {
                   ),
                 ],
               ),
-              _StatusChip(label: 'Resep'),
+              const _StatusChip(label: 'Resep'),
             ],
           ),
           const SizedBox(height: 12),
@@ -1048,7 +2626,6 @@ class _MedicalRecordCard extends StatelessWidget {
 
 class _BillCard extends StatelessWidget {
   const _BillCard({required this.status});
-
   final String status;
 
   @override
@@ -1135,29 +2712,30 @@ class _BillLine extends StatelessWidget {
     required this.value,
     this.large = false,
   });
-
-  final String label;
-  final String value;
+  final String label, value;
   final bool large;
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = TextStyle(
-      fontSize: large ? 16 : 12,
-      fontWeight: large ? FontWeight.w700 : FontWeight.w600,
-      color: const Color(0xFF4A5565),
-    );
-    final valueStyle = TextStyle(
-      fontSize: large ? 20 : 12,
-      fontWeight: FontWeight.w700,
-      color: large ? const Color(0xFF009966) : const Color(0xFF101828),
-    );
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: labelStyle),
-        Text(value, style: valueStyle),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: large ? 16 : 12,
+            fontWeight: large ? FontWeight.w700 : FontWeight.w600,
+            color: const Color(0xFF4A5565),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: large ? 20 : 12,
+            fontWeight: FontWeight.w700,
+            color: large ? const Color(0xFF009966) : const Color(0xFF101828),
+          ),
+        ),
       ],
     );
   }
@@ -1165,31 +2743,27 @@ class _BillLine extends StatelessWidget {
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.label});
-
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    final isPending = label == 'Belum Bayar' || label == 'Penuh';
-    final bg = isPending ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5);
-    final border = isPending
-        ? const Color(0xFFFEE685)
-        : const Color(0xFFA4F4CF);
-    final text = isPending ? const Color(0xFFBB4D00) : const Color(0xFF007A55);
-
+    final isPending =
+        label == 'Belum Bayar' || label == 'Penuh' || label == 'Menunggu';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: bg,
+        color: isPending ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: border),
+        border: Border.all(
+          color: isPending ? const Color(0xFFFEE685) : const Color(0xFFA4F4CF),
+        ),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: text,
+          color: isPending ? const Color(0xFFBB4D00) : const Color(0xFF007A55),
         ),
       ),
     );
@@ -1203,11 +2777,8 @@ class _NotificationCard extends StatelessWidget {
     required this.message,
     required this.time,
   });
-
   final bool highlighted;
-  final String title;
-  final String message;
-  final String time;
+  final String title, message, time;
 
   @override
   Widget build(BuildContext context) {
@@ -1434,13 +3005,8 @@ class _VitalTile extends StatelessWidget {
     required this.border,
     required this.accent,
   });
-
-  final String title;
-  final String value;
-  final String unit;
-  final Color bg;
-  final Color border;
-  final Color accent;
+  final String title, value, unit;
+  final Color bg, border, accent;
 
   @override
   Widget build(BuildContext context) {
@@ -1487,9 +3053,7 @@ class _VitalTile extends StatelessWidget {
 
 class _DetailTextCard extends StatelessWidget {
   const _DetailTextCard({required this.title, required this.content});
-
-  final String title;
-  final String content;
+  final String title, content;
 
   @override
   Widget build(BuildContext context) {
@@ -1530,11 +3094,9 @@ class _DetailInfoRow extends StatelessWidget {
     required this.label,
     required this.value,
   });
-
   final Color iconBg;
   final IconData icon;
-  final String label;
-  final String value;
+  final String label, value;
 
   @override
   Widget build(BuildContext context) {
@@ -1606,137 +3168,6 @@ class _BillBreakdownCard extends StatelessWidget {
   }
 }
 
-class _ProfileHeroCard extends StatelessWidget {
-  const _ProfileHeroCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: _cardDecoration,
-      padding: const EdgeInsets.fromLTRB(25, 33, 25, 24),
-      child: Column(
-        children: [
-          Container(
-            width: 112,
-            height: 112,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF00BC7D), Color(0xFF009966)],
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x80A4F4CF),
-                  blurRadius: 25,
-                  offset: Offset(0, 20),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: Colors.white,
-              size: 56,
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Andi Pratama',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF101828),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'NIK: 3210****1234',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF4A5565),
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            '29 tahun • Laki-laki',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF6A7282),
-            ),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.edit_rounded, size: 16),
-            label: const Text('Edit Profil'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF1A1A1A),
-              side: const BorderSide(color: Color(0xFFE5E7EB)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileInfoCard extends StatelessWidget {
-  const _ProfileInfoCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: _cardDecoration,
-      padding: const EdgeInsets.all(24),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Informasi Pribadi',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-          SizedBox(height: 16),
-          _InfoRow(
-            iconBg: Color(0xFFEFF6FF),
-            icon: Icons.badge_rounded,
-            label: 'Nama Lengkap',
-            value: 'Andi Pratama',
-          ),
-          SizedBox(height: 12),
-          _InfoRow(
-            iconBg: Color(0xFFFAF5FF),
-            icon: Icons.phone_rounded,
-            label: 'Nomor Telepon',
-            value: '+62 812-3456-7890',
-          ),
-          SizedBox(height: 12),
-          _InfoRow(
-            iconBg: Color(0xFFECFDF5),
-            icon: Icons.email_rounded,
-            label: 'Email',
-            value: 'andi.pratama@email.com',
-          ),
-          SizedBox(height: 12),
-          _InfoRow(
-            iconBg: Color(0xFFFEF3C6),
-            icon: Icons.location_on_rounded,
-            label: 'Alamat',
-            value: 'Jakarta Pusat, DKI Jakarta',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _InfoRow extends StatelessWidget {
   const _InfoRow({
     required this.iconBg,
@@ -1744,11 +3175,9 @@ class _InfoRow extends StatelessWidget {
     required this.label,
     required this.value,
   });
-
   final Color iconBg;
   final IconData icon;
-  final String label;
-  final String value;
+  final String label, value;
 
   @override
   Widget build(BuildContext context) {
@@ -1793,66 +3222,19 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _ProfileSettingsCard extends StatelessWidget {
-  const _ProfileSettingsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: _cardDecoration,
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Pengaturan',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _SettingRow(
-            icon: Icons.notifications_rounded,
-            label: 'Notifikasi',
-            onTap: () {},
-          ),
-          const SizedBox(height: 12),
-          _SettingRow(
-            icon: Icons.lock_rounded,
-            label: 'Keamanan Akun',
-            onTap: () {},
-          ),
-          const SizedBox(height: 12),
-          _SettingRow(
-            icon: Icons.logout_rounded,
-            label: 'Keluar',
-            danger: true,
-            onTap: () {},
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SettingRow extends StatelessWidget {
   const _SettingRow({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.danger = false,
   });
-
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool danger;
 
   @override
   Widget build(BuildContext context) {
-    final color = danger ? const Color(0xFFFB2C36) : const Color(0xFF101828);
+    const color = Color(0xFF101828);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -1886,9 +3268,16 @@ class _SettingRow extends StatelessWidget {
 }
 
 class _QuickMenuGrid extends StatelessWidget {
-  const _QuickMenuGrid({required this.onOpenSearchDoctor});
-
-  final VoidCallback onOpenSearchDoctor;
+  const _QuickMenuGrid({
+    required this.onOpenAppointments,
+    required this.onOpenAppointmentHistory,
+    required this.onOpenMedicalRecords,
+    required this.onOpenBills,
+  });
+  final VoidCallback onOpenAppointments,
+      onOpenAppointmentHistory,
+      onOpenMedicalRecords,
+      onOpenBills;
 
   @override
   Widget build(BuildContext context) {
@@ -1905,25 +3294,28 @@ class _QuickMenuGrid extends StatelessWidget {
           icon: Icons.add_rounded,
           iconGradient: const [Color(0xFF00BC7D), Color(0xFF009966)],
           shadowColor: const Color(0x80A4F4CF),
-          onTap: onOpenSearchDoctor,
+          onTap: onOpenAppointments,
         ),
-        const _QuickMenuCard(
+        _QuickMenuCard(
           title: 'Riwayat Kunjungan',
           icon: Icons.history_rounded,
-          iconGradient: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
-          shadowColor: Color(0x80BEDBFF),
+          iconGradient: const [Color(0xFF2B7FFF), Color(0xFF155DFC)],
+          shadowColor: const Color(0x80BEDBFF),
+          onTap: onOpenAppointmentHistory,
         ),
-        const _QuickMenuCard(
+        _QuickMenuCard(
           title: 'Rekam Medis',
           icon: Icons.folder_open_rounded,
-          iconGradient: [Color(0xFFAD46FF), Color(0xFF9810FA)],
-          shadowColor: Color(0x80E9D4FF),
+          iconGradient: const [Color(0xFFAD46FF), Color(0xFF9810FA)],
+          shadowColor: const Color(0x80E9D4FF),
+          onTap: onOpenMedicalRecords,
         ),
-        const _QuickMenuCard(
+        _QuickMenuCard(
           title: 'Tagihan Saya',
           icon: Icons.receipt_long_rounded,
-          iconGradient: [Color(0xFFFE9A00), Color(0xFFE17100)],
-          shadowColor: Color(0x80FEE685),
+          iconGradient: const [Color(0xFFFE9A00), Color(0xFFE17100)],
+          shadowColor: const Color(0x80FEE685),
+          onTap: onOpenBills,
         ),
       ],
     );
@@ -1938,7 +3330,6 @@ class _QuickMenuCard extends StatelessWidget {
     required this.shadowColor,
     this.onTap,
   });
-
   final String title;
   final IconData icon;
   final List<Color> iconGradient;
@@ -2176,7 +3567,6 @@ class _ActiveAppointmentCard extends StatelessWidget {
 
 class _MetaChip extends StatelessWidget {
   const _MetaChip({required this.icon, required this.text});
-
   final IconData icon;
   final String text;
 
@@ -2203,7 +3593,6 @@ class _MetaChip extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title});
-
   final String title;
 
   @override
@@ -2238,11 +3627,6 @@ class _ClinicInfoCard extends StatelessWidget {
           BoxShadow(
             color: Color(0x0C000000),
             blurRadius: 3,
-            offset: Offset(0, 1),
-          ),
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 2,
             offset: Offset(0, 1),
           ),
         ],
@@ -2292,10 +3676,8 @@ class _ClinicInfoRow extends StatelessWidget {
     required this.title,
     required this.value,
   });
-
   final IconData icon;
-  final String title;
-  final String value;
+  final String title, value;
 
   @override
   Widget build(BuildContext context) {
@@ -2344,14 +3726,15 @@ class _ClinicInfoRow extends StatelessWidget {
 }
 
 class _GreetingBlock extends StatelessWidget {
-  const _GreetingBlock();
+  const _GreetingBlock({required this.userName});
+  final String userName;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Selamat pagi 👋',
           style: TextStyle(
             fontSize: 30,
@@ -2361,10 +3744,10 @@ class _GreetingBlock extends StatelessWidget {
             letterSpacing: 0.2,
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
-          'Andi Pratama',
-          style: TextStyle(
+          userName,
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Color(0xFFD0FAE5),
@@ -2378,7 +3761,6 @@ class _GreetingBlock extends StatelessWidget {
 
 class _NotificationButton extends StatelessWidget {
   const _NotificationButton({required this.onTap, required this.badgeCount});
-
   final VoidCallback onTap;
   final int badgeCount;
 
@@ -2402,28 +3784,29 @@ class _NotificationButton extends StatelessWidget {
               size: 24,
             ),
           ),
-          Positioned(
-            right: -4,
-            top: -4,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFB2C36),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '$badgeCount',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  height: 1,
+          if (badgeCount > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFB2C36),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$badgeCount',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    height: 1,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -2434,10 +3817,11 @@ class _PatientBottomNavigationBar extends StatelessWidget {
   const _PatientBottomNavigationBar({
     required this.selectedIndex,
     required this.onSelected,
+    required this.pendingAppointmentCount,
   });
-
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+  final int pendingAppointmentCount;
 
   @override
   Widget build(BuildContext context) {
@@ -2474,7 +3858,9 @@ class _PatientBottomNavigationBar extends StatelessWidget {
               selected: selectedIndex == 1,
               icon: Icons.calendar_month_rounded,
               onTap: () => onSelected(1),
-              badgeCount: 2,
+              badgeCount: pendingAppointmentCount > 0
+                  ? pendingAppointmentCount
+                  : null,
             ),
             _BottomNavItem(
               label: 'Rekam Medis',
@@ -2509,7 +3895,6 @@ class _BottomNavItem extends StatelessWidget {
     required this.onTap,
     this.badgeCount,
   });
-
   final String label;
   final bool selected;
   final IconData icon;
@@ -2520,7 +3905,6 @@ class _BottomNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     const Color activeColor = Color(0xFF009966);
     const Color inactiveColor = Color(0xFF99A1AF);
-
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -2537,7 +3921,7 @@ class _BottomNavItem extends StatelessWidget {
                     size: 24,
                     color: selected ? activeColor : inactiveColor,
                   ),
-                  if (badgeCount != null)
+                  if (badgeCount != null && badgeCount! > 0)
                     Positioned(
                       right: -10,
                       top: -10,
@@ -2582,7 +3966,6 @@ class _BottomNavItem extends StatelessWidget {
 
 class _HeroBlob extends StatelessWidget {
   const _HeroBlob({required this.size});
-
   final double size;
 
   @override

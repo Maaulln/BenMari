@@ -33,7 +33,6 @@ class DokterPemeriksaanPage extends StatelessWidget {
 
 class _PemeriksaanHeader extends StatelessWidget {
   const _PemeriksaanHeader({required this.onBack});
-
   final VoidCallback onBack;
 
   @override
@@ -174,9 +173,7 @@ class _PatientInfoGrid extends StatelessWidget {
 
 class _PatientInfoTile extends StatelessWidget {
   const _PatientInfoTile({required this.label, required this.value});
-
-  final String label;
-  final String value;
+  final String label, value;
 
   @override
   Widget build(BuildContext context) {
@@ -332,11 +329,9 @@ class _InputBlock extends StatelessWidget {
   });
 
   final String label;
-  final String? hint;
-  final String? initialValue;
+  final String? hint, initialValue;
   final bool requiredField;
-  final int minLines;
-  final int maxLines;
+  final int minLines, maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -394,8 +389,92 @@ class _InputBlock extends StatelessWidget {
   }
 }
 
-class _PrescriptionCard extends StatelessWidget {
+// ─────────────────────────────────────────────
+// PRESCRIPTION CARD — StatefulWidget
+// ─────────────────────────────────────────────
+
+class _PrescriptionCard extends StatefulWidget {
   const _PrescriptionCard();
+
+  @override
+  State<_PrescriptionCard> createState() => _PrescriptionCardState();
+}
+
+class _PrescriptionCardState extends State<_PrescriptionCard> {
+  final List<Map<String, String>> _obatList = [];
+
+  void _showTambahObatDialog() {
+    final namaCtrl = TextEditingController();
+    final dosisCtrl = TextEditingController();
+    final aturanCtrl = TextEditingController();
+    final catatanCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Tambah Obat',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _DialogField(
+                ctrl: namaCtrl,
+                label: 'Nama Obat',
+                hint: 'cth: Paracetamol 500mg',
+                required: true,
+              ),
+              const SizedBox(height: 12),
+              _DialogField(ctrl: dosisCtrl, label: 'Dosis', hint: 'cth: 3x1'),
+              const SizedBox(height: 12),
+              _DialogField(
+                ctrl: aturanCtrl,
+                label: 'Aturan Pakai',
+                hint: 'cth: Sesudah makan',
+              ),
+              const SizedBox(height: 12),
+              _DialogField(
+                ctrl: catatanCtrl,
+                label: 'Catatan',
+                hint: 'opsional',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (namaCtrl.text.trim().isEmpty) return;
+              setState(() {
+                _obatList.add({
+                  'nama': namaCtrl.text.trim(),
+                  'dosis': dosisCtrl.text.trim(),
+                  'aturan': aturanCtrl.text.trim(),
+                  'catatan': catatanCtrl.text.trim(),
+                });
+              });
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF155DFC),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Tambah'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _hapusObat(int index) {
+    setState(() => _obatList.removeAt(index));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -416,7 +495,7 @@ class _PrescriptionCard extends StatelessWidget {
               SizedBox(
                 height: 32,
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: _showTambahObatDialog,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF155DFC),
                     foregroundColor: Colors.white,
@@ -434,27 +513,166 @@ class _PrescriptionCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Center(
-              child: Text(
-                'Belum ada obat ditambahkan',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF6A7282),
+          const SizedBox(height: 16),
+          if (_obatList.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(
+                child: Text(
+                  'Belum ada obat ditambahkan',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6A7282),
+                  ),
                 ),
               ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _obatList.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              itemBuilder: (ctx, i) {
+                final obat = _obatList[i];
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFDBEAFE)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.medication_rounded,
+                        color: Color(0xFF155DFC),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              obat['nama'] ?? '',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF101828),
+                              ),
+                            ),
+                            if ((obat['dosis'] ?? '').isNotEmpty)
+                              Text(
+                                'Dosis: ${obat['dosis']}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF4A5565),
+                                ),
+                              ),
+                            if ((obat['aturan'] ?? '').isNotEmpty)
+                              Text(
+                                'Aturan: ${obat['aturan']}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF4A5565),
+                                ),
+                              ),
+                            if ((obat['catatan'] ?? '').isNotEmpty)
+                              Text(
+                                'Catatan: ${obat['catatan']}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF6A7282),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _hapusObat(i),
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Color(0xFFFB2C36),
+                          size: 20,
+                        ),
+                        tooltip: 'Hapus',
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-          ),
         ],
       ),
+    );
+  }
+}
+
+class _DialogField extends StatelessWidget {
+  const _DialogField({
+    required this.ctrl,
+    required this.label,
+    this.hint,
+    this.required = false,
+  });
+  final TextEditingController ctrl;
+  final String label;
+  final String? hint;
+  final bool required;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF364153),
+              ),
+            ),
+            if (required)
+              const Text(' *', style: TextStyle(color: Color(0xFFFB2C36))),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: ctrl,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+            filled: true,
+            fillColor: const Color(0xFFF9FAFB),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF155DFC)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -490,7 +708,6 @@ class _FinishButton extends StatelessWidget {
 
 class _CardShell extends StatelessWidget {
   const _CardShell({required this.child});
-
   final Widget child;
 
   @override
